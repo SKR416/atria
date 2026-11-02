@@ -26,7 +26,7 @@ Atria is an enterprise platform that brings attendance tracking and approval wor
 | **Backend** | Java 21 LTS, Spring Boot 3 | Modular monolith core (`io.github.skr416.atria`) |
 | **Security** | Spring Security 6, JWT (jjwt) | Stateless authentication, RBAC, and department data-scope filtering |
 | **Database** | PostgreSQL 16, Flyway | Relational core with native `JSONB` for dynamic forms and i18n fields |
-| **Frontend** | Vue 3, Vite, TypeScript, Element Plus | SPA with three layout shells (`/public`, `/portal`, `/admin`) |
+| **Frontend** | Vue 3, Vite, TypeScript, PrimeVue, ApexCharts | SPA with high information density B2B layout and three shells (`/public`, `/portal`, `/admin`) |
 | **i18n** | Spring `MessageSource`, `vue-i18n` | Trilingual support (`zh-TW`, `en-US`, `ja-JP`) across API, DB, and UI |
 | **API Contract** | Springdoc OpenAPI 3 | Swagger documentation and frontend TypeScript type generation |
 

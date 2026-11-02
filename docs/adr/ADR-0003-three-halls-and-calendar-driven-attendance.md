@@ -12,12 +12,23 @@ Early planning considered a full shift-scheduling engine (rotating shifts, overn
 
 ## Decision
 
-1. **Calendar-Driven Attendance Model (`att_work_calendar`):**
+1. **Calendar-Driven Attendance Model & Multi-Timezone Cutoff (`att_work_calendar`):**
    - Instead of individual shift scheduling, HR defines the company-wide work calendar (`WORKDAY`, `HOLIDAY`, `MAKEUP_DAY`) along with standard start/end times (e.g., `09:00`–`18:00`).
+   - Departments and branch offices define their localized timezone in `iam_department.timezone` (e.g. `Asia/Taipei`, `Asia/Tokyo`). Work dates and cutoffs are evaluated against the employee's department timezone while all database timestamps remain in UTC.
    - A `WorkScheduleResolver` interface resolves expected working hours for any user and date. The initial implementation (`CalendarBasedScheduleResolver`) reads `att_work_calendar`, keeping an extension point open if per-employee shift rosters are ever needed later.
-2. **Closed-Loop Clock-In, Leave, and Punch Correction:**
-   - Daily clock-in/out records (`att_punch_record`) are evaluated against `att_work_calendar` into explicit statuses: `NORMAL`, `LATE`, `EARLY_LEAVE`, `MISSING_PUNCH`, `ON_LEAVE`, or `ABSENT`.
-   - Both leave applications and missed-punch corrections share the `att_request` table differentiated by `request_type` (`LEAVE` | `PUNCH_CORRECTION`). When approved through the workflow engine, the corresponding `att_punch_record` is updated automatically.
+2. **Dual-Timestamp Punch Records & Closed-Loop Attendance:**
+   - Daily clock-in/out records (`att_punch_record`) record both:
+     - `raw_punch_time`: Actual server UTC timestamp and client IP recorded down to the exact second (strictly unalterable for labor compliance audits).
+     - `effective_punch_time`: Recognized working timestamp calculated via configurable rounding rules (`att_punch_rule` defining grace periods and rounding intervals such as 15/30-minute floors).
+   - An authorized third-party bot punch endpoint is exposed to permit validated proxies (e.g., company Slack/Teams/LINE bot) to submit clock-ins.
+   - Break calculation follows a standard fixed deduction rule: shifts intersecting 12:00–13:00 automatically deduct 1 hour of unpaid break time.
+   - Overtime tracking is strictly approval-based: clock-out times past the scheduled end time do not automatically generate overtime hours; recognized overtime requires an approved `OVERTIME` workflow request, maintaining compliance while accommodating managerial negotiations (e.g., converting overtime to compensatory leave).
+   - Daily records are evaluated against `att_work_calendar` into explicit statuses: `NORMAL`, `LATE`, `EARLY_LEAVE`, `MISSING_PUNCH`, `ON_LEAVE`, or `ABSENT`.
+   - **Cross-Midnight Day Cutoff (`day_cutoff_hour`):** `att_punch_rule` defines a logical day cutoff hour (default `04:00` AM) so late-night overtime clock-outs past midnight are accurately attributed to the previous business workday.
+   - **Bot Endpoint Anti-Replay HMAC Security:** Third-party Bot clock-in requests are authenticated via `HMAC-SHA256` signature verification paired with a ±5 minute timestamp window (`HmacSignatureVerifier`) and real client IP resolution (`ClientIpResolver`).
+   - **Leave Balance Ledger (`att_leave_balance`):** Tracks `total_hours`, `used_hours`, `pending_hours` (frozen upon submission, committed on final approval, released on rejection/return/revocation), and `expires_at`, with an HR interface for granting negotiated compensatory leave.
+   - **Monthly Closing Lock (`att_monthly_close`) & Overdue Retroactive Blocking:** Supports manual HR monthly lock and scheduled auto-closing (e.g., locking the prior month on a configured day of the new month) to prohibit retroactive work-hour or leave modifications after payroll settlement. Retroactive leave or punch correction requests exceeding the configured deadline (`max_retroactive_days`) are directly blocked at submission.
+   - Leave applications, missed-punch corrections, and overtime requests share the `att_request` table differentiated by `request_type` (`LEAVE` | `PUNCH_CORRECTION` | `OVERTIME`). When approved through the workflow engine, the corresponding `att_punch_record` is updated automatically in the same database transaction.
 3. **Three-Hall Frontend Architecture:**
    - `/public`: Unauthenticated external announcement site.
    - `/portal`: Clean, calendar-centric Employee Self-Service (ESS) portal for clock-in/out, leave/punch-correction requests, internal announcements, and AI tools.

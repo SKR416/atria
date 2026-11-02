@@ -18,6 +18,7 @@ Atria includes an embedded AI module (`modules/ai`) to assist employees in their
 1. **Pluggable `AiProvider` Abstraction:**
    - Define clean `ChatProvider` and `SpeechToTextProvider` interfaces in `io.github.skr416.atria.modules.ai`.
    - Provide a default `MockAiProvider` profile that simulates SSE token streaming and STT transcription locally with zero external API keys, alongside configurable production adapters.
+   - **Production STT Engine (`whisper.cpp`):** Speech-to-text uses a standalone `whisper.cpp` HTTP service (or `faster-whisper` container). Running the native inference engine in an isolated process decoupled from the JVM eliminates JVM crash risks (e.g. fatal segmentation faults from C/C++ JNI crashes) and preserves Spring Boot stability for core attendance operations.
 2. **Asynchronous STT Job Queue (`ai_stt_job`):**
    - Uploading an audio file stores the file via `FileStorageService`, creates an `ai_stt_job` row with status `PENDING`, and immediately returns the `jobId` to the client.
    - A background worker thread pool processes the job (`PENDING` -> `PROCESSING` -> `COMPLETED` / `FAILED`) and stores the resulting transcript text and duration.

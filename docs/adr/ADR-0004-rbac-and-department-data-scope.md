@@ -21,7 +21,10 @@ Pure Role-Based Access Control (RBAC: `User -> Role -> Permission`) determines *
      - `DEPT_ONLY`: Access restricted to the user's immediate department.
      - `SELF_ONLY`: Access restricted to the user's own records.
    - A custom `@DataScope` AOP aspect dynamically appends department/user predicates to attendance and workflow queries.
-3. **Time-Bounded Approval Deputy (`wf_deputy`):**
+3. **Account Security & Soft Delete Partial Unique Indexes:**
+   - Account protection: Track consecutive failed login attempts (`failed_login_attempts`) and lock the account for 15 minutes (`locked_until`) upon 5 consecutive failures to prevent credential brute-forcing.
+   - Non-destructive soft deletion: Use PostgreSQL Partial Unique Indexes (`CREATE UNIQUE INDEX uq_iam_user_username ON iam_user(username) WHERE is_deleted = FALSE;`) so resigned/deactivated employees can be archived without blocking future re-hires or colliding with unique username/email constraints.
+4. **Time-Bounded Approval Deputy (`wf_deputy`):**
    - Managers can configure a deputy (`principal_user_id`, `deputy_user_id`, `start_at`, `end_at`, `active`) in the workflow module so approval routing never stalls during manager absences.
 
 ## Consequences

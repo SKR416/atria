@@ -28,7 +28,7 @@ Atria は、勤怠管理と申請・承認(ワークフロー)を一つにまと
 | **バックエンド** | Java 21 LTS, Spring Boot 3 | モジュラーモノリス基盤 (`io.github.skr416.atria`) |
 | **セキュリティ** | Spring Security 6, JWT (jjwt) | ステートレス認証、RBAC、部門ツリーに基づくデータスコープ制御 |
 | **データベース** | PostgreSQL 16, Flyway | リレーショナル管理＋動的フォーム・多言語フィールド用の `JSONB` |
-| **フロントエンド** | Vue 3, Vite, TypeScript, Element Plus | 3つのレイアウト（`/public`, `/portal`, `/admin`）を持つ SPA |
+| **フロントエンド** | Vue 3, Vite, TypeScript, PrimeVue, ApexCharts | 高情報密度な日系B2B UI、3つのレイアウト（`/public`, `/portal`, `/admin`）を持つ SPA |
 | **多言語対応 (i18n)** | Spring `MessageSource`, `vue-i18n` | 繁体字中国語 (`zh-TW`)・英語 (`en-US`)・日本語 (`ja-JP`) の3言語対応 |
 | **API 仕様** | Springdoc OpenAPI 3 | Swagger ドキュメント生成およびフロントエンド型定義連携 |
 

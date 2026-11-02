@@ -22,48 +22,31 @@
 | 工具 | 目前狀態 | 建議動作 / 安裝指令 |
 | :--- | :--- | :--- |
 | **Node.js** | ✅ 已安裝 (`v24.14.1`) | 前端環境就緒，Phase 2 時直接可用 |
-| **Java JDK 21** | ❌ 尚未安裝 | 於 CMD/PowerShell 執行：<br>`winget install EclipseAdoptium.Temurin.21.JDK`<br>*(重開終端機後 `java -version` 確認)* |
-| **PostgreSQL 16** | ❌ 尚未安裝 | 於 CMD/PowerShell 執行：<br>`winget install PostgreSQL.PostgreSQL.16`<br>*(Phase 0 初期可先使用 H2 內嵌資料庫免安裝起跑)* |
+| **Java JDK 21** | ✅ 已安裝 (`Temurin 21.0.13 LTS`) | 路徑：`C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` |
+| **Maven Wrapper** | ✅ 已內建 (`mvnw` / `mvnw.cmd`) | 自動管理 Apache Maven `3.9.9` |
+| **PostgreSQL 16** | ⏳ 選配 | 本地開發預設啟用 H2 PostgreSQL 相容模式；正式環境再連線 PostgreSQL 16 |
 
 ---
 
-## 三、 Phase 0 即刻待實作項目清單 (Action Items for Next Session)
-
-新 Session 啟動後，直接執行 **Phase 0 (基礎底座建置)**：
+## 三、 Phase 0 基礎底座實作狀態 (已完成 ✅)
 
 ### 1. 後端專案骨架建置 (`backend/` - `atria-backend`)
-- [ ] 建立 `backend/pom.xml`：
-  - `groupId`: `io.github.skr416.atria`
-  - `artifactId`: `atria-backend`
-  - `version`: `0.1.0-SNAPSHOT`
-  - 依賴項：`spring-boot-starter-web`, `spring-boot-starter-validation`, `spring-boot-starter-data-jpa`, `postgresql`, `h2`, `flyway-core`, `springdoc-openapi-starter-webmvc-ui`, `lombok`
-- [ ] 補齊 Maven Wrapper 腳本（`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`）
-- [ ] 建立主入口類別 `io.github.skr416.atria.AtriaApplication.java`
+- [x] 建立 `backend/pom.xml` (`io.github.skr416.atria:atria-backend:0.1.0-SNAPSHOT`，含 Spring Boot 3.3.5, Validation, Data JPA, PostgreSQL, H2, Flyway, Springdoc OpenAPI, Apache POI SXSSF, Lombok)
+- [x] 補齊 Maven Wrapper 腳本（`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`）
+- [x] 建立主入口類別 `io.github.skr416.atria.AtriaApplication.java`（強制設定全域 UTC 時區）
 
 ### 2. 多語系與統一例外/響應底座 (Three-Tier i18n Foundation)
-- [ ] 建立統一響應封裝：
-  - `io.github.skr416.atria.common.api.ApiResponse<T>` (`code`, `message`, `data`, `timestamp`)
-  - `io.github.skr416.atria.common.api.PageResult<T>` (`list`, `total`, `page`, `size`)
-- [ ] 建立錯誤碼與例外體系：
-  - `ErrorCode` (Enum: `SUCCESS(200, "success")`, `SYSTEM_ERROR(500, "error.system")`, `VALIDATION_FAILED(400, "error.validation")`...)
-  - `BusinessException` (繼承 `RuntimeException`，攜帶 `ErrorCode` 與可變參數)
-  - `GlobalExceptionHandler` (@RestControllerAdvice，攔截 `BusinessException` 與各類校驗例外)
-- [ ] 建立三語系資源檔 (`src/main/resources/i18n/`)：
-  - `messages_zh_TW.properties` (繁中預設)
-  - `messages_en_US.properties` (英文)
-  - `messages_ja_JP.properties` (日文)
-- [ ] 配置 `I18nConfig` (整合 `AcceptHeaderLocaleResolver`，預設 Locale 為 `zh_TW`)
+- [x] 建立統一響應封裝：`ApiResponse<T>` 與 `PageResult<T>`
+- [x] 建立錯誤碼與例外體系：`ErrorCode`、`BusinessException`、`GlobalExceptionHandler`
+- [x] 建立三語系資源檔 (`src/main/resources/i18n/`)：`messages_zh_TW.properties`、`messages_en_US.properties`、`messages_ja_JP.properties`
+- [x] 配置 `I18nConfig`、`OpenApiConfig`、`CorsConfig` 及基礎抽象（`BaseAuditEntity`、`FileStorageService`、`NotificationChannel`）
 
 ### 3. 多環境組態檔 (H2 免等快速啟動 / PostgreSQL 正式模式)
-- [ ] `application.yml` (通用設定：JPA、i18n 路徑、OpenAPI)
-- [ ] `application-local.yml` (預設啟用 H2 內嵌記憶體資料庫 + H2 Web Console，開箱即測)
-- [ ] `application-prod.yml` (PostgreSQL 16 + 連線池)
+- [x] `application.yml`、`application-local.yml`、`application-prod.yml`
 
 ### 4. 驗證端點與單元測試
-- [ ] 建立 `HealthCheckController`：
-  - 提供 `/api/v1/health` 端點
-  - 提供 `/api/v1/i18n/test` 端點（驗證送出 `Accept-Language: ja-JP`、`en-US`、`zh-TW` 時能正確回傳對應語言之訊息）
-- [ ] 驗證並提交第一個功能 Tag：`git tag v0.1.0-foundation`
+- [x] 建立 `HealthCheckController`（`/api/v1/health` 與 `/api/v1/i18n/test`）
+- [x] 撰寫並通過 `AtriaApplicationTests` 4 項整合測試（驗證預設 `zh-TW`、`en-US`、`ja-JP` 語系解析與 `BusinessException` 三語錯誤翻譯）
 
 ---
 

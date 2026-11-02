@@ -25,7 +25,7 @@ Hardcoding user-facing strings in Java exceptions, database columns, or Vue temp
      ```json
      {"zh-TW": "特休假", "en-US": "Annual Leave", "ja-JP": "年次有給休暇"}
      ```
-  3. **Frontend Tier:** `vue-i18n` manages static UI labels and synchronizes the active locale with Element Plus's `ElConfigProvider` and the Axios `Accept-Language` header.
+  3. **Frontend Tier:** `vue-i18n` manages static UI labels and synchronizes the active locale with PrimeVue's locale configuration (`primevue.config.locale`) and the Axios `Accept-Language` header.
 
 ## Decision
 

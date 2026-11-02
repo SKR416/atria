@@ -28,7 +28,7 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 | **後端核心** | Java 21 LTS, Spring Boot 3 | 模組化單體架構 (`io.github.skr416.atria`) |
 | **安全與權限** | Spring Security 6, JWT (jjwt) | 無狀態認證、RBAC 角色權限、部門樹資料範圍過濾 (`@DataScope`) |
 | **資料庫** | PostgreSQL 16, Flyway | 關聯式資料庫搭配原生 `JSONB` 儲存動態表單與多語系欄位 |
-| **前端核心** | Vue 3, Vite, TypeScript, Element Plus | 單頁應用 (SPA)，內建三套獨立版面配置 (`/public`, `/portal`, `/admin`) |
+| **前端核心** | Vue 3, Vite, TypeScript, PrimeVue, ApexCharts | 單頁應用 (SPA)，高資訊密度日系 B2B 介面，內建三套獨立版面配置 (`/public`, `/portal`, `/admin`) |
 | **多語系 (i18n)** | Spring `MessageSource`, `vue-i18n` | 全面支援繁體中文 (`zh-TW`)、英文 (`en-US`)、日文 (`ja-JP`) |
 | **API 契約** | Springdoc OpenAPI 3 | 自動產生 Swagger 文件與前端 TypeScript 型別 |
 
