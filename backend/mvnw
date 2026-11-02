@@ -1,0 +1,51 @@
+#!/bin/sh
+# ----------------------------------------------------------------------------
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# ----------------------------------------------------------------------------
+
+set -e
+
+WRAPPER_DIR="$(cd "$(dirname "$0")" && pwd)"
+WRAPPER_PROPS="$WRAPPER_DIR/.mvn/wrapper/maven-wrapper.properties"
+
+DISTRIBUTION_URL="$(grep '^distributionUrl=' "$WRAPPER_PROPS" | cut -d'=' -f2- | tr -d '\r')"
+ZIP_NAME="$(basename "$DISTRIBUTION_URL")"
+DIST_DIR_NAME="$( echo "$ZIP_NAME" | sed 's/-bin\.zip$//' )"
+
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-$HOME/.m2}"
+M2_DIST_DIR="$MAVEN_USER_HOME/wrapper/dists/$DIST_DIR_NAME"
+MVN_BIN="$M2_DIST_DIR/$DIST_DIR_NAME/bin/mvn"
+
+if [ ! -x "$MVN_BIN" ]; then
+    echo "Downloading Apache Maven from $DISTRIBUTION_URL ..."
+    mkdir -p "$M2_DIST_DIR"
+    ZIP_PATH="$M2_DIST_DIR/$ZIP_NAME"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$DISTRIBUTION_URL" -o "$ZIP_PATH"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$DISTRIBUTION_URL" -O "$ZIP_PATH"
+    else
+        echo "Error: Neither curl nor wget is available." >&2
+        exit 1
+    fi
+    unzip -q -o "$ZIP_PATH" -d "$M2_DIST_DIR"
+    rm -f "$ZIP_PATH"
+    chmod +x "$MVN_BIN"
+fi
+
+exec "$MVN_BIN" "$@"

@@ -38,10 +38,13 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
-application-local.yml
 application-secret.yml
-uploads/
-storage/
+application-local-secret.yml
+/uploads/
+/backend/uploads/
+/storage/
+!**/src/main/**/storage/
+!**/src/test/**/storage/
 
 # =========================
 # IDEs & Editors
