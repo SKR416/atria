@@ -7,13 +7,14 @@
 ## 一、 目前進度與專案現況 (Current Status)
 
 - **專案路徑**：`C:\Users\a1083\OneDrive\文件\atria`
-- **Git 狀態**：`main` 分支，目前 Commit `cd23c69`
+- **Git 狀態**：`main` 分支，Phase 0 已完成並驗證通過
 - **已完成工作**：
-  - [x] Monorepo 根目錄結構、`.gitignore` (Java/Node/IDE/機密排除)、`LICENSE` (MIT)
+  - [x] Monorepo 根目錄結構、`.gitignore` (Java/Node/IDE/機密排除)、`LICENSE` (MIT)、專案根目錄輕量索引 `CLAUDE.md`
   - [x] 三語說明文件：`README.md` (EN)、`README.zh-TW.md` (繁中)、`README.ja.md` (日文)
   - [x] 系統架構圖與模組/資料表命名規範：`docs/ARCHITECTURE.md`
   - [x] 七階段垂直切片實作里程碑：`docs/ROADMAP.md`
-  - [x] 7 份全英文架構決策紀錄：`docs/adr/ADR-0001` ~ `ADR-0007`
+  - [x] 7 份全英文架構決策紀錄：`docs/adr/ADR-0001` ~ `ADR-0007`（含 `ADR-0004` 三層加密與 DBA 明文救急強制改密規範）
+  - [x] Phase 0 後端基礎底座、三語 i18n、統一例外處理與整合測試通過
 
 ---
 
@@ -65,6 +66,6 @@
 
 ```text
 我們正在開發 Atria 專案（路徑：C:\Users\a1083\OneDrive\文件\atria）。
-請讀取 docs/NEXT_STEPS.md、docs/ROADMAP.md 與 docs/ARCHITECTURE.md，
-我們現在開始進行 Phase 0 的後端程式碼實作（建立 atria-backend 骨架、統一 ApiResponse、三語系 ErrorCode 與測試端點）。
+請讀取 CLAUDE.md、docs/NEXT_STEPS.md、docs/ROADMAP.md 與 docs/adr/ADR-0004-rbac-and-department-data-scope.md，
+我們現在正式開始進行 Phase 1（IAM、部門樹、RBAC 資料範圍、JWT 認證、DBA 明文救急強制改密與 AES-256-GCM 欄位加密轉換器）的後端與前端實作。
 ```
