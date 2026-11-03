@@ -29,6 +29,15 @@ public enum ErrorCode {
     USER_NOT_FOUND(1004, HttpStatus.NOT_FOUND, "error.iam.user_not_found"),
     DEPT_NOT_FOUND(1005, HttpStatus.NOT_FOUND, "error.iam.dept_not_found"),
     BOT_SIGNATURE_INVALID(1006, HttpStatus.UNAUTHORIZED, "error.iam.bot_signature_invalid"),
+    AUTH_ACCOUNT_DISABLED(1007, HttpStatus.FORBIDDEN, "error.iam.account_disabled"),
+    ROLE_NOT_FOUND(1008, HttpStatus.NOT_FOUND, "error.iam.role_not_found"),
+    ROLE_BUILTIN_IMMUTABLE(1009, HttpStatus.BAD_REQUEST, "error.iam.role_builtin_immutable"),
+    USERNAME_ALREADY_EXISTS(1010, HttpStatus.CONFLICT, "error.iam.username_exists"),
+    EMAIL_ALREADY_EXISTS(1011, HttpStatus.CONFLICT, "error.iam.email_exists"),
+    DEPT_CODE_ALREADY_EXISTS(1012, HttpStatus.CONFLICT, "error.iam.dept_code_exists"),
+    ROLE_CODE_ALREADY_EXISTS(1013, HttpStatus.CONFLICT, "error.iam.role_code_exists"),
+    DEPT_HAS_CHILDREN_OR_USERS(1014, HttpStatus.BAD_REQUEST, "error.iam.dept_in_use"),
+    DEPT_INVALID_PARENT(1015, HttpStatus.BAD_REQUEST, "error.iam.dept_invalid_parent"),
 
     // --- Attendance (2xxx) ---
     ATT_PUNCH_DUPLICATE(2001, HttpStatus.CONFLICT, "error.att.punch_duplicate"),

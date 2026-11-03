@@ -31,6 +31,27 @@ springdoc:
     tags-sorter: alpha
 
 atria:
+  security:
+    jwt:
+      # HS256 secret (>= 32 bytes). Override with ATRIA_JWT_SECRET; prod profile has no fallback.
+      secret: ${ATRIA_JWT_SECRET:}
+      access-ttl-minutes: 15
+      refresh-ttl-days: 7
+      # Short-lived token issued while must_change_password = TRUE (password-change endpoint only)
+      password-change-ttl-minutes: 10
+    refresh-cookie:
+      name: atria_refresh
+      secure: ${ATRIA_COOKIE_SECURE:true}
+    lockout:
+      max-failed-attempts: 5
+      lock-minutes: 15
+    bootstrap-admin:
+      username: admin
+      # Initial admin password; if blank no admin is auto-created (prod default).
+      password: ${ATRIA_BOOTSTRAP_ADMIN_PASSWORD:}
+  crypto:
+    # Base64 of a 32-byte AES-256 KEK. Override with ATRIA_CRYPTO_KEK; prod profile has no fallback.
+    kek: ${ATRIA_CRYPTO_KEK:}
   storage:
     local-dir: ./uploads
   ai:

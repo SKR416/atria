@@ -9,8 +9,8 @@ This document tracks the 7-phase vertical-slice implementation plan for **Atria*
 | Phase | Git Tag | Focus Area | Status |
 | :--- | :--- | :--- | :--- |
 | **Phase 0** | `v0.1.0-foundation` | Repository setup, ADRs, Spring Boot 3 skeleton (`atria-backend`), unified `ApiResponse<T>`, trilingual `ErrorCode` i18n | ✅ Completed |
-| **Phase 1** | `v0.2.0-iam` | IAM schema (`iam_*`), Spring Security 6 + JWT, RBAC, department tree with `leader_id`, `@DataScope`, `@AuditLog` | 🔄 In Progress |
-| **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 shell (`atria-frontend`), three layouts (`/public`, `/portal`, `/admin`), trilingual switcher, IAM admin UI | ⏳ Planned |
+| **Phase 1** | `v0.2.0-iam` | IAM schema (`iam_*`), Spring Security 6 + JWT, RBAC, department tree with `leader_id`, `@DataScope`, `@AuditLog` | ✅ Completed |
+| **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 shell (`atria-frontend`), three layouts (`/public`, `/portal`, `/admin`), trilingual switcher, IAM admin UI | 🔄 In Progress |
 | **Phase 3** | `v0.4.0-attendance-portal` | HR corporate calendar (`att_work_calendar`), clock-in/out punch (`att_punch_record`), leave calculator, employee portal (`/portal`) | ⏳ Planned |
 | **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), multi-level approval workflow (`wf_*`), deputy delegation (`wf_deputy`), attendance write-back | ⏳ Planned |
 | **Phase 5** | `v0.6.0-dashboard-notice` | Manager attendance dashboard, anomaly filtering, public (`/public`) & internal (`/portal`) announcements (`ann_*`) | ⏳ Planned |
@@ -28,13 +28,14 @@ This document tracks the 7-phase vertical-slice implementation plan for **Atria*
 - [x] Configure trilingual `MessageSource` (`messages_zh_TW.properties`, `messages_en_US.properties`, `messages_ja_JP.properties`) and UTC time handling
 
 ### Phase 1: Identity, Department Tree & Access Control (`v0.2.0-iam`)
-- [ ] Flyway migration `V1__init_iam_schema.sql`: `iam_user`, `iam_department`, `iam_role`, `iam_permission`, `iam_audit_log`
-- [ ] Department timezone support (`iam_department.timezone` default `Asia/Taipei`) for regional cutoffs
-- [ ] Account security: 5 consecutive failed login lockout (`locked_until`), plus PostgreSQL partial unique index (`WHERE is_deleted = FALSE`) for soft delete
-- [ ] Stateless JWT authentication (Access Token in memory + Refresh Token in HttpOnly cookie) and BCrypt password hashing
-- [ ] CRUD APIs for users, hierarchical departments (with `parent_id` and `leader_id`), roles, and permissions
-- [ ] `@DataScope` AOP aspect for filtering manager queries by department subtree
-- [ ] `@AuditLog` AOP aspect for recording administrative mutations
+- [x] Flyway migration `V1__init_iam_schema.sql`: `iam_user`, `iam_department`, `iam_role`, `iam_permission`, `iam_audit_log` (PostgreSQL & H2 dialects)
+- [x] Department timezone support (`iam_department.timezone` default `Asia/Taipei`) for regional cutoffs
+- [x] Account security: 5 consecutive failed login lockout (`locked_until`), DBA emergency plaintext/`{noop}` recovery forcing password change, plus PostgreSQL partial unique index (`WHERE is_deleted = FALSE`) for soft delete
+- [x] Field-level encryption converter `AesGcmStringConverter` (`AES-256-GCM` with 96-bit random IV and `{v1}` prefix)
+- [x] Stateless JWT authentication (Access Token in memory + Refresh Token in HttpOnly cookie) and BCrypt (strength 12) password hashing
+- [x] CRUD APIs for users, hierarchical departments (with `parent_id`, `leader_id`, and cascading `tree_path`), roles, and permissions
+- [x] `@DataScope` AOP aspect for filtering manager queries by department subtree
+- [x] `@AuditLog` AOP aspect for recording administrative mutations
 
 ### Phase 2: Frontend Three-Hall Shell & IAM Console (`v0.3.0-frontend-shell`)
 - [ ] Scaffold `atria-frontend` with Vue 3, Vite, TypeScript, PrimeVue, Lucide Icons, Pinia, Vue Router, and `vue-i18n` (high-density Japanese B2B layout)

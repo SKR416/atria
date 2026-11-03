@@ -10,10 +10,25 @@ spring:
       path: /h2-console
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
   flyway:
-    enabled: false
+    enabled: true
+    # {vendor} resolves to h2 / postgresql (DDL differs: JSON vs JSONB, partial unique indexes)
+    locations: classpath:db/migration/{vendor}
+
+atria:
+  security:
+    jwt:
+      # LOCAL DEVELOPMENT ONLY - never reuse outside the local profile
+      secret: ${ATRIA_JWT_SECRET:local-dev-only-jwt-secret-change-me-0123456789abcdef}
+    refresh-cookie:
+      secure: ${ATRIA_COOKIE_SECURE:false}
+    bootstrap-admin:
+      password: ${ATRIA_BOOTSTRAP_ADMIN_PASSWORD:Admin@12345}
+  crypto:
+    # LOCAL DEVELOPMENT ONLY (Base64 of 32 bytes)
+    kek: ${ATRIA_CRYPTO_KEK:bG9jYWwtZGV2LW9ubHktYWVzMjU2LWtlay0zMmJ5dGU=}
 
 logging:
   level:

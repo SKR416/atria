@@ -9,6 +9,8 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -75,6 +77,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailure(OptimisticLockingFailureException ex) {
         log.warn("Optimistic locking conflict detected: {}", ex.getMessage());
         ErrorCode errorCode = ErrorCode.CONFLICT;
+        String localizedMsg = resolveMessage(errorCode.getMessageKey(), null);
+        return ResponseEntity
+                .status(errorCode.getHttpStatus())
+                .body(ApiResponse.error(errorCode.getCode(), localizedMsg));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        ErrorCode errorCode = ErrorCode.FORBIDDEN;
+        String localizedMsg = resolveMessage(errorCode.getMessageKey(), null);
+        return ResponseEntity
+                .status(errorCode.getHttpStatus())
+                .body(ApiResponse.error(errorCode.getCode(), localizedMsg));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthenticationException(AuthenticationException ex) {
+        ErrorCode errorCode = ErrorCode.UNAUTHORIZED;
         String localizedMsg = resolveMessage(errorCode.getMessageKey(), null);
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
