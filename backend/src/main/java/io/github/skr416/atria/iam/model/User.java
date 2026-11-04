@@ -16,6 +16,7 @@ import lombok.Setter;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -45,6 +46,9 @@ public class User extends BaseAuditEntity {
 
     @Column(name = "department_id")
     private Long departmentId;
+
+    @Column(name = "hire_date")
+    private LocalDate hireDate;
 
     @Column(name = "locale", nullable = false, length = 10)
     private String locale = "zh-TW";

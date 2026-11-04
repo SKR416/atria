@@ -8,13 +8,13 @@ Atria 是結合差勤（Kintai）與動態表單簽核（Workflow）的企業級
 - **JDK 21 路徑**：`C:/Program Files/Eclipse Adoptium/jdk-21.0.13.9-hotspot`
 
 ## 2. 按需讀取路由表 (Read on Demand — 避免平時塞滿 Context)
-平時**不要**一次讀取所有文件；僅在觸及對應領域時讀取：
+平時**不要**一次讀取所有文件；僅在觸及對應領域時讀取（英文原版於 `docs/adr/`，繁中對照於 `docs/adr/zh-TW/`）：
 - **跨 Session 進度與接續待辦** ➔ `docs/NEXT_STEPS.md`、`docs/ROADMAP.md`
-- **模組邊界、套件結構、資料表命名 (`sys_`/`att_`/`wf_`/`ai_`)** ➔ `docs/ARCHITECTURE.md`、`docs/adr/ADR-0001-modular-monolith-and-tech-stack.md`
+- **模組邊界、套件結構、資料表命名 (`iam_`/`att_`/`wf_`/`ntf_`/`ann_`/`ai_`)** ➔ `docs/ARCHITECTURE.md`、`docs/adr/ADR-0001-modular-monolith-and-tech-stack.md`
 - **多語系 (i18n)、錯誤碼 (`ErrorCode`)、時區 (UTC 儲存)** ➔ `docs/adr/ADR-0002-three-tier-i18n-architecture.md`
-- **差勤打卡、行事曆、三大廳 (Three Halls)、補登鎖定** ➔ `docs/adr/ADR-0003-three-halls-and-calendar-driven-attendance.md`
+- **差勤打卡、雙表 (`att_punch_log` + `att_daily_record`)、台日行事曆與假勤加班規則 (Phase 3a/3b)** ➔ `docs/adr/ADR-0003-three-halls-and-calendar-driven-attendance.md`、`docs/adr/ADR-0008-attendance-leave-overtime-refinements.md`
 - **RBAC 權限、JWT 認證、部門資料範圍 (Data Scope)** ➔ `docs/adr/ADR-0004-rbac-and-department-data-scope.md`
-- **動態表單 Schema 版本控制、簽核狀態機、併發樂觀鎖** ➔ `docs/adr/ADR-0005-dynamic-form-versioning-and-approval-workflow.md`
+- **動態表單 Schema 版本控制、簽核狀態機、併發樂觀鎖** ➔ `docs/adr/ADR-0005-dynamic-form-versioning-and-approval-workflow.md`、`docs/adr/ADR-0008-attendance-leave-overtime-refinements.md`
 - **AI 模組與非同步語音轉文字 (STT)** ➔ `docs/adr/ADR-0006-ai-module-scope-and-async-stt.md`
 
 ## 3. 核心程式碼慣例 (Core Conventions)

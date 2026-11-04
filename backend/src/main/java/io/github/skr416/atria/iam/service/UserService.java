@@ -109,6 +109,7 @@ public class UserService {
         user.setPasswordHash(passwordHash);
         user.setDisplayName(req.displayName().trim());
         user.setDepartmentId(req.departmentId());
+        user.setHireDate(req.hireDate());
         user.setLocale(req.locale() != null && !req.locale().isBlank() ? req.locale().trim() : "zh-TW");
         user.setEnabled(true);
         user.setFailedLoginAttempts(0);
@@ -140,6 +141,7 @@ public class UserService {
         user.setEmail(newEmail);
         user.setDisplayName(req.displayName().trim());
         user.setDepartmentId(req.departmentId());
+        user.setHireDate(req.hireDate());
         if (req.locale() != null && !req.locale().isBlank()) {
             user.setLocale(req.locale().trim());
         }

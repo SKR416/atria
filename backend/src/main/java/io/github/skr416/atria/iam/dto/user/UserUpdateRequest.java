@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.Set;
 
@@ -19,6 +20,8 @@ public record UserUpdateRequest(
 
         @NotNull
         Long departmentId,
+
+        LocalDate hireDate,
 
         String locale,
 

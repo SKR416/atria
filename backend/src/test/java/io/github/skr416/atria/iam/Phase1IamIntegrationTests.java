@@ -446,6 +446,69 @@ class Phase1IamIntegrationTests {
                 .andExpect(jsonPath("$.data.list").isArray());
     }
 
+    @Test
+    @Order(7)
+    @DisplayName("7. User create, update, get, and paged list persist and return hireDate (DATE) accurately")
+    void userCreateAndUpdateShouldPersistAndReturnHireDate() throws Exception {
+        String adminToken = loginAndGetAccessToken("admin", "Admin@12345");
+
+        // Create user with hireDate = 2024-04-01
+        String createBody = objectMapper.writeValueAsString(Map.of(
+                "username", "emp_hire_test",
+                "email", "emp_hire_test@atria.local",
+                "initialPassword", "Pass@12345",
+                "displayName", "Hire Date Employee",
+                "departmentId", 1L,
+                "hireDate", "2024-04-01",
+                "locale", "ja-JP",
+                "roleIds", Set.of(4L),
+                "mustChangePassword", false
+        ));
+
+        MvcResult createRes = mockMvc.perform(post("/api/v1/iam/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.username").value("emp_hire_test"))
+                .andExpect(jsonPath("$.data.hireDate").value("2024-04-01"))
+                .andReturn();
+
+        long userId = objectMapper.readTree(createRes.getResponse().getContentAsString()).path("data").path("id").asLong();
+
+        // Update user's hireDate to 2023-10-15
+        String updateBody = objectMapper.writeValueAsString(Map.of(
+                "email", "emp_hire_test@atria.local",
+                "displayName", "Hire Date Employee Updated",
+                "departmentId", 1L,
+                "hireDate", "2023-10-15",
+                "locale", "ja-JP",
+                "enabled", true,
+                "roleIds", Set.of(4L)
+        ));
+
+        mockMvc.perform(put("/api/v1/iam/users/" + userId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hireDate").value("2023-10-15"));
+
+        // Verify GET by ID returns updated hireDate
+        mockMvc.perform(get("/api/v1/iam/users/" + userId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hireDate").value("2023-10-15"));
+
+        // Verify paged user list also includes hireDate
+        mockMvc.perform(get("/api/v1/iam/users")
+                        .param("keyword", "emp_hire_test")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.list[0].hireDate").value("2023-10-15"));
+    }
+
     private long createDept(String token, Long parentId, String code, String zhName) throws Exception {
         String body = objectMapper.writeValueAsString(Map.of(
                 "parentId", parentId,

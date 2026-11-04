@@ -1,0 +1,129 @@
+:root {
+  --atria-primary: #1e40af;
+  --atria-primary-hover: #1d4ed8;
+  --atria-primary-soft: #eff6ff;
+  --atria-bg: #f1f5f9;
+  --atria-surface: #ffffff;
+  --atria-surface-subtle: #f8fafc;
+  --atria-border: #e2e8f0;
+  --atria-border-strong: #cbd5e1;
+  --atria-text: #0f172a;
+  --atria-text-muted: #475569;
+  --atria-text-light: #64748b;
+  --atria-success: #15803d;
+  --atria-warning: #b45309;
+  --atria-danger: #b91c1c;
+  --atria-radius: 6px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--atria-text);
+  background-color: var(--atria-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--atria-primary);
+  text-decoration: none;
+}
+
+/* High-density Japanese B2B enterprise layout utilities */
+.atria-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--atria-border);
+}
+
+.atria-page-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--atria-text);
+}
+
+.atria-page-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--atria-text-muted);
+}
+
+.atria-card {
+  background: var(--atria-surface);
+  border: 1px solid var(--atria-border);
+  border-radius: var(--atria-radius);
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.atria-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.atria-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.atria-badge-info {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.atria-badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.atria-badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.atria-badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.atria-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.atria-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.atria-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--atria-text-muted);
+}
