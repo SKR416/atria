@@ -6,6 +6,7 @@ Atria 是結合差勤（Kintai）與動態表單簽核（Workflow）的企業級
 - **後端編譯檢查**：`cd backend && ./mvnw.cmd test-compile`
 - **後端執行測試**：`cd backend && ./mvnw.cmd test`
 - **JDK 21 路徑**：`C:/Program Files/Eclipse Adoptium/jdk-21.0.13.9-hotspot`
+- **本機服務啟動與瀏覽器預覽**：因路徑含中文，後端**嚴禁使用 `spring-boot:run`**，一律先 `./mvnw.cmd package -DskipTests` 再以 `java -Dfile.encoding=UTF-8 -jar target/atria-backend-0.1.0-SNAPSHOT.jar` 背景啟動（完整啟動四步驟、測試帳號與 UI/i18n 驗收清單見 `docs/LOCAL_PREVIEW_SOP.md`，可委派 `haiku-scout` 執行打包與探針檢查）。
 - **知識圖譜檢索 (`graphify`)**：
   - 查波及範圍：`graphify affected "<Symbol>"`
   - 查呼叫/關聯路徑：`graphify path "<NodeA>" "<NodeB>"`
@@ -15,6 +16,7 @@ Atria 是結合差勤（Kintai）與動態表單簽核（Workflow）的企業級
 ## 2. 按需讀取路由表 (Read on Demand — 避免平時塞滿 Context)
 平時**不要**一次讀取所有文件；跨檔案結構探索或修改既有類別前，優先使用 `graphify` 定位精確的 `檔案:行號`，再按需讀取對應區間（英文原版於 `docs/adr/`，繁中對照於 `docs/adr/zh-TW/`）：
 - **跨 Session 進度與接續待辦** ➔ `docs/NEXT_STEPS.md`、`docs/ROADMAP.md`
+- **本機前後端啟動、瀏覽器預覽與 UI/i18n 驗收 SOP** ➔ `docs/LOCAL_PREVIEW_SOP.md`
 - **階段完成 / `git push` 前三語 README 與 ADR 對齊檢驗清單** ➔ `docs/README_SYNC_CHECKLIST.md`
 - **模組邊界、套件結構、資料表命名 (`iam_`/`att_`/`wf_`/`ntf_`/`ann_`/`ai_`)** ➔ `docs/ARCHITECTURE.md`、`docs/adr/ADR-0001-modular-monolith-and-tech-stack.md`
 - **多語系 (i18n)、錯誤碼 (`ErrorCode`)、時區 (UTC 儲存)** ➔ `docs/adr/ADR-0002-three-tier-i18n-architecture.md`
