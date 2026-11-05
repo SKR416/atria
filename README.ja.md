@@ -2,8 +2,8 @@
 
 [English](./README.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja.md)
 
-> **現在の開発ステータス：** `Phase 0 — 基盤構築中 (In Progress)`  
-> 現段階ではリポジトリ構造、アーキテクチャ設計書、および ADR（アーキテクチャ意思決定記録）を整備しています。全7フェーズの実装計画は [docs/ROADMAP.md](./docs/ROADMAP.md) を参照してください。
+> **現在の開発ステータス：** `Phase 2 — フロントエンド3ホール骨格・IAM管理コンソール（完了）` ｜ **次フェーズ：** `Phase 3a — 勤怠コア・マルチリージョンカレンダー`  
+> Phase 0〜2（`atria-backend` IAM/RBAC/データスコープ/AES-256-GCM 暗号化 ＋ `atria-frontend` Vue 3 3つのレイアウトおよび IAM 管理画面）が完了しています。全フェーズの実装計画は [docs/ROADMAP.md](./docs/ROADMAP.md) を参照してください。
 
 Atria は、勤怠管理と申請・承認(ワークフロー)を一つにまとめたエンタープライズ向けプラットフォームです。従業員の打刻や休暇・打刻修正の申請から、上長・HR による多段階承認、勤怠記録への自動反映までを一貫して扱います。Spring Boot 3 と Vue 3 によるモジュラーモノリス構成で、RBAC、動的フォーム、3言語(繁体字中国語・英語・日本語)対応を備えています。
 
@@ -34,23 +34,43 @@ Atria は、勤怠管理と申請・承認(ワークフロー)を一つにまと
 
 ---
 
+## クイックスタート (Local Development)
+
+### 1. バックエンド起動 (`atria-backend`)
+デフォルトで `local` プロファイル（インメモリ H2 データベース）にてポート `8080` で起動し、デモアカウント（`admin`, `hr_lead`, `eng_mgr`, `emp_alice`, `emp_locked`／パスワードはいずれも `Password123!`）が自動投入されます：
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+### 2. フロントエンド起動 (`atria-frontend`)
+ポート `5173` で起動し、`/api` リクエストを `http://localhost:8080` へプロキシします：
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
 ## 開発ロードマップ
 
 | フェーズ | ターゲットタグ | 実装範囲 | 状態 |
 | :--- | :--- | :--- | :--- |
-| **Phase 0** | `v0.1.0-foundation` | リポジトリ初期化、ADR 文書、Spring Boot 3 骨格、`ApiResponse<T>`、3言語エラーコード | 🔄 進行中 |
-| **Phase 1** | `v0.2.0-iam` | IAM スキーマ (`iam_*`)、JWT 認証、RBAC、部門ツリー、`@DataScope`、操作監査ログ | ⏳ 計画中 |
-| **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 フロントエンド骨格 (`atria-frontend`)、3つのレイアウト、IAM 管理画面 | ⏳ 計画中 |
-| **Phase 3** | `v0.4.0-attendance-portal` | HR 会社カレンダー、出退勤打刻、休暇日数自動計算、従業員ポータル (`/portal`) | ⏳ 計画中 |
-| **Phase 4** | `v0.5.0-workflow` | 動的フォーム (`JSONB`)、多段階承認ワークフロー (`wf_*`)、承認後の勤怠自動反映 | ⏳ 計画中 |
-| **Phase 5** | `v0.6.0-dashboard-notice` | 上長向け勤怠ダッシュボード、打刻異常フィルタ、社外・社内お知らせ機能 (`ann_*`) | ⏳ 計画中 |
-| **Phase 6** | `v0.7.0-ai-suite` | 軽量 AI チャット、テキスト変換、音声ファイルの文字起こし (STT) | ⏳ 計画中 |
+| **Phase 0** | `v0.1.0-foundation` | リポジトリ初期化、ADR 文書、Spring Boot 3 骨格、`ApiResponse<T>`、3言語エラーコード | ✅ 完了 |
+| **Phase 1** | `v0.2.0-iam` | IAM スキーマ (`iam_*`)、JWT 認証、RBAC、部門ツリー、`@DataScope`、`@AuditLog`、AES-256-GCM | ✅ 完了 |
+| **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 フロントエンド骨格 (`atria-frontend`)、3つのレイアウト、IAM 管理画面、`hire_date` (`V2`) | ✅ 完了 |
+| **Phase 3a** | `v0.4.0-attendance-core` | マルチリージョンカレンダー (`TW`/`JP`)、不変打刻ログ (`att_punch_log`) + 日次集計 (`att_daily_record`)、Bot 打刻、月次締め、`/portal`・`/admin` カレンダー UI | ⏳ 次フェーズ |
+| **Phase 3b** | `v0.4.5-leave-overtime` | 休暇種別・勤続年数付与ルール (`hire_date`)、休暇時間計算・残高台帳、残業割増率・上限エンジン、代休換算 | ⏳ 計画中 |
+| **Phase 4** | `v0.5.0-workflow` | 動的フォーム (`JSONB`)、構造化条件による多段階承認ワークフロー (`wf_*`)、代理承認 (`wf_deputy`)、通知基盤 (`ntf_*`) | ⏳ 計画中 |
+| **Phase 5** | `v0.6.0-dashboard-notice` | 上長向け勤怠ダッシュボード、打刻異常フィルタ、給与計算用 Excel/CSV 出力、社外・社内お知らせ機能 (`ann_*`) | ⏳ 計画中 |
+| **Phase 6** | `v0.7.0-ai-suite` | 軽量 AI チャット (SSE)、職場テキスト変換、非同期音声ファイルの文字起こし (STT) | ⏳ 計画中 |
 
 ---
 
 ## アーキテクチャ意思決定記録 (ADRs)
 
-設計上の判断とトレードオフはすべて英語で [`docs/adr/`](./docs/adr/) に記録されています：
+設計上の判断とトレードオフはすべて英語で [`docs/adr/`](./docs/adr/) に記録されています（繁体字中国語訳は [`docs/adr/zh-TW/`](./docs/adr/zh-TW/)）：
 
 - [ADR-0001: モジュラーモノリス構成と技術スタック選定](./docs/adr/ADR-0001-modular-monolith-and-tech-stack.md)
 - [ADR-0002: 3層構造による3言語 i18n アーキテクチャ (`zh-TW`, `en-US`, `ja-JP`)](./docs/adr/ADR-0002-three-tier-i18n-architecture.md)
@@ -59,6 +79,7 @@ Atria は、勤怠管理と申請・承認(ワークフロー)を一つにまと
 - [ADR-0005: 動的フォームのバージョニングと多段階承認ワークフロー](./docs/adr/ADR-0005-dynamic-form-versioning-and-approval-workflow.md)
 - [ADR-0006: 実用的な AI モジュール設計（チャット・テキスト変換・非同期音声文字起こし）](./docs/adr/ADR-0006-ai-module-scope-and-async-stt.md)
 - [ADR-0007: プロジェクト命名（Atria）およびテーブル接頭辞の統一規則](./docs/adr/ADR-0007-project-naming.md)
+- [ADR-0008: エンタープライズ勤怠・休暇・残業・承認ワークフローの詳細仕様（日台労働法規対応）](./docs/adr/ADR-0008-attendance-leave-overtime-refinements.md)
 
 ---
 
