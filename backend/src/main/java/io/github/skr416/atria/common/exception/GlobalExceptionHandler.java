@@ -33,13 +33,13 @@ public class GlobalExceptionHandler {
     private final MessageSource messageSource;
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
+    public ResponseEntity<ApiResponse<Object>> handleBusinessException(BusinessException ex) {
         ErrorCode errorCode = ex.getErrorCode();
         String localizedMsg = resolveMessage(errorCode.getMessageKey(), ex.getArgs());
         log.warn("BusinessException [code={}, key={}]: {}", errorCode.getCode(), errorCode.getMessageKey(), localizedMsg);
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
-                .body(ApiResponse.error(errorCode.getCode(), localizedMsg));
+                .body(ApiResponse.error(errorCode.getCode(), localizedMsg, ex.getData()));
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})

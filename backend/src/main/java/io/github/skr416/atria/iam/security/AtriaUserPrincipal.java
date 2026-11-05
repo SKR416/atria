@@ -25,6 +25,8 @@ public class AtriaUserPrincipal implements UserDetails {
     private final String displayName;
     private final Long departmentId;
     private final String departmentTreePath;
+    private final String departmentTimezone;
+    private final String departmentCalendarCode;
     private final String locale;
     private final boolean enabled;
     private final boolean mustChangePassword;

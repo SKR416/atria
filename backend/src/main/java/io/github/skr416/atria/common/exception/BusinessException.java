@@ -11,6 +11,7 @@ public class BusinessException extends RuntimeException {
 
     private final ErrorCode errorCode;
     private final transient Object[] args;
+    private transient Object data;
 
     public BusinessException(ErrorCode errorCode) {
         super(errorCode.getMessageKey());
@@ -22,5 +23,10 @@ public class BusinessException extends RuntimeException {
         super(errorCode.getMessageKey());
         this.errorCode = errorCode;
         this.args = args != null ? args : new Object[0];
+    }
+
+    public BusinessException withData(Object data) {
+        this.data = data;
+        return this;
     }
 }

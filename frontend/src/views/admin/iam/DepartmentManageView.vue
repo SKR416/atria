@@ -31,14 +31,19 @@ const treeNodes = ref<TreeNode[]>([])
 const expandedKeys = ref<Record<string, boolean>>({})
 const loading = ref<boolean>(false)
 
-// Common IANA timezones
-const timezoneOptions = [
-  { label: 'Asia/Taipei (UTC+8)', value: 'Asia/Taipei' },
-  { label: 'Asia/Tokyo (UTC+9)', value: 'Asia/Tokyo' },
-  { label: 'UTC', value: 'UTC' },
-  { label: 'America/New_York (EST/EDT)', value: 'America/New_York' },
-  { label: 'Europe/London (GMT/BST)', value: 'Europe/London' }
-]
+// Common IANA timezones (trilingual via vue-i18n)
+const timezoneOptions = computed(() => [
+  { label: t('timezones.Asia/Taipei'), value: 'Asia/Taipei' },
+  { label: t('timezones.Asia/Tokyo'), value: 'Asia/Tokyo' },
+  { label: t('timezones.UTC'), value: 'UTC' },
+  { label: t('timezones.America/New_York'), value: 'America/New_York' },
+  { label: t('timezones.Europe/London'), value: 'Europe/London' }
+])
+
+const calendarCodeOptions = computed(() => [
+  { label: t('regions.TW'), value: 'TW' },
+  { label: t('regions.JP'), value: 'JP' }
+])
 
 function getDepartmentDisplayName(dept: DepartmentTreeNodeResponse | null | undefined): string {
   if (!dept) return ''
@@ -149,12 +154,23 @@ interface DepartmentFormModel {
   }
   leaderId: number | null
   timezone: string
+  calendarCode: string
   sortOrder: number
 }
 
+type DialogMode = 'createRoot' | 'createChild' | 'edit'
+
 const dialogVisible = ref<boolean>(false)
-const isEditing = ref<boolean>(false)
+const dialogMode = ref<DialogMode>('createRoot')
+const parentContextDept = ref<DepartmentTreeNodeResponse | null>(null)
+const isEditing = computed<boolean>(() => dialogMode.value === 'edit')
 const submitting = ref<boolean>(false)
+
+const dialogHeaderTitle = computed<string>(() => {
+  if (dialogMode.value === 'edit') return t('iam.dept.editDept')
+  if (dialogMode.value === 'createChild') return t('iam.dept.addChild')
+  return t('iam.dept.addRoot')
+})
 
 const formModel = ref<DepartmentFormModel>({
   parentId: null,
@@ -166,6 +182,7 @@ const formModel = ref<DepartmentFormModel>({
   },
   leaderId: null,
   timezone: 'Asia/Taipei',
+  calendarCode: 'TW',
   sortOrder: 0
 })
 
@@ -195,7 +212,8 @@ const parentOptions = computed(() => {
 })
 
 function openCreateRootDialog() {
-  isEditing.value = false
+  dialogMode.value = 'createRoot'
+  parentContextDept.value = null
   formModel.value = {
     parentId: null,
     code: '',
@@ -206,13 +224,15 @@ function openCreateRootDialog() {
     },
     leaderId: null,
     timezone: 'Asia/Taipei',
+    calendarCode: 'TW',
     sortOrder: 0
   }
   dialogVisible.value = true
 }
 
 function openCreateChildDialog(parentDept: DepartmentTreeNodeResponse) {
-  isEditing.value = false
+  dialogMode.value = 'createChild'
+  parentContextDept.value = parentDept
   formModel.value = {
     parentId: parentDept.id,
     code: '',
@@ -223,13 +243,15 @@ function openCreateChildDialog(parentDept: DepartmentTreeNodeResponse) {
     },
     leaderId: null,
     timezone: parentDept.timezone || 'Asia/Taipei',
+    calendarCode: parentDept.calendarCode || 'TW',
     sortOrder: 0
   }
   dialogVisible.value = true
 }
 
 function openEditDialog(dept: DepartmentTreeNodeResponse) {
-  isEditing.value = true
+  dialogMode.value = 'edit'
+  parentContextDept.value = null
   formModel.value = {
     id: dept.id,
     parentId: dept.parentId,
@@ -241,6 +263,7 @@ function openEditDialog(dept: DepartmentTreeNodeResponse) {
     },
     leaderId: dept.leaderId,
     timezone: dept.timezone || 'Asia/Taipei',
+    calendarCode: dept.calendarCode || 'TW',
     sortOrder: dept.sortOrder ?? 0
   }
   dialogVisible.value = true
@@ -276,6 +299,7 @@ async function handleSubmit() {
     },
     leaderId: formModel.value.leaderId,
     timezone: formModel.value.timezone,
+    calendarCode: formModel.value.calendarCode,
     sortOrder: formModel.value.sortOrder ?? 0
   }
 
@@ -392,6 +416,13 @@ function asDeptNode(node: unknown): DepartmentTreeNodeResponse {
           </template>
         </Column>
 
+        <!-- Calendar Code -->
+        <Column :header="t('iam.dept.calendarCode')" style="width: 110px">
+          <template #body="{ node }">
+            <code class="dept-code">{{ asDeptNode(node).calendarCode || 'TW' }}</code>
+          </template>
+        </Column>
+
         <!-- Leader ID -->
         <Column :header="t('iam.dept.leaderId')" style="width: 110px">
           <template #body="{ node }">
@@ -456,14 +487,31 @@ function asDeptNode(node: unknown): DepartmentTreeNodeResponse {
     <!-- Create / Edit Department Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
-      :header="isEditing ? t('iam.dept.editDept') : t('iam.dept.addRoot')"
+      :header="dialogHeaderTitle"
       modal
-      :style="{ width: '560px' }"
+      :style="{ width: '560px', maxWidth: '94vw' }"
       :closable="true"
     >
       <form @submit.prevent="handleSubmit" class="dialog-form">
-        <!-- Parent Department -->
-        <div class="atria-field">
+        <!-- Mode Context Banner / Parent Department -->
+        <div v-if="dialogMode === 'createRoot'" class="dept-context-banner dept-context-root">
+          <span class="context-label">{{ t('iam.dept.parentDept') }}：</span>
+          <strong class="context-value">{{ t('iam.dept.noParent') }}</strong>
+        </div>
+
+        <div
+          v-else-if="dialogMode === 'createChild' && parentContextDept"
+          class="dept-context-banner dept-context-child"
+        >
+          <span class="context-label">{{ t('iam.dept.parentDept') }}：</span>
+          <strong class="context-value">
+            {{ getDepartmentDisplayName(parentContextDept) }}
+          </strong>
+          <code class="dept-code">{{ parentContextDept.code }}</code>
+          <code class="tree-path">{{ parentContextDept.treePath }}</code>
+        </div>
+
+        <div v-else class="atria-field">
           <label for="dept-parent">{{ t('iam.dept.parentDept') }}</label>
           <Select
             id="dept-parent"
@@ -521,17 +569,30 @@ function asDeptNode(node: unknown): DepartmentTreeNodeResponse {
           </div>
         </div>
 
-        <!-- Timezone -->
-        <div class="atria-field">
-          <label for="dept-timezone">{{ t('iam.dept.timezone') }}</label>
-          <Select
-            id="dept-timezone"
-            v-model="formModel.timezone"
-            :options="timezoneOptions"
-            optionLabel="label"
-            optionValue="value"
-            style="width: 100%"
-          />
+        <!-- Timezone & Calendar Code -->
+        <div class="atria-form-grid">
+          <div class="atria-field">
+            <label for="dept-timezone">{{ t('iam.dept.timezone') }}</label>
+            <Select
+              id="dept-timezone"
+              v-model="formModel.timezone"
+              :options="timezoneOptions"
+              optionLabel="label"
+              optionValue="value"
+              style="width: 100%"
+            />
+          </div>
+          <div class="atria-field">
+            <label for="dept-calendar">{{ t('iam.dept.calendarCode') }}</label>
+            <Select
+              id="dept-calendar"
+              v-model="formModel.calendarCode"
+              :options="calendarCodeOptions"
+              optionLabel="label"
+              optionValue="value"
+              style="width: 100%"
+            />
+          </div>
         </div>
 
         <!-- Leader ID & Sort Order -->
@@ -637,6 +698,37 @@ function asDeptNode(node: unknown): DepartmentTreeNodeResponse {
   flex-direction: column;
   gap: 0.875rem;
   padding: 0.5rem 0;
+}
+
+.dept-context-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+}
+
+.dept-context-root {
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #334155;
+}
+
+.dept-context-child {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
+}
+
+.context-label {
+  color: #475569;
+  font-weight: 500;
+}
+
+.context-value {
+  font-weight: 700;
 }
 
 .empty-message {

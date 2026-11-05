@@ -46,6 +46,13 @@ public enum ErrorCode {
     ATT_INSUFFICIENT_LEAVE_BALANCE(2004, HttpStatus.BAD_REQUEST, "error.att.insufficient_leave_balance"),
     ATT_MONTHLY_PERIOD_CLOSED(2005, HttpStatus.FORBIDDEN, "error.att.monthly_period_closed"),
     ATT_RETROACTIVE_LIMIT_EXCEEDED(2006, HttpStatus.BAD_REQUEST, "error.att.retroactive_limit_exceeded"),
+    ATT_CALENDAR_DAY_NOT_FOUND(2007, HttpStatus.NOT_FOUND, "error.att.calendar_day_not_found"),
+    ATT_UNSUPPORTED_CALENDAR_CODE(2008, HttpStatus.BAD_REQUEST, "error.att.unsupported_calendar_code"),
+    ATT_PUNCH_RULE_NOT_FOUND(2009, HttpStatus.NOT_FOUND, "error.att.punch_rule_not_found"),
+    ATT_MONTHLY_CLOSE_HAS_PENDING_REQUESTS(2010, HttpStatus.CONFLICT, "error.att.monthly_close_pending_requests"),
+    ATT_MONTHLY_CLOSE_ALREADY_CLOSED(2011, HttpStatus.CONFLICT, "error.att.monthly_close_already_closed"),
+    ATT_MONTHLY_CLOSE_NOT_FOUND(2012, HttpStatus.NOT_FOUND, "error.att.monthly_close_not_found"),
+    ATT_INVALID_YEAR_MONTH(2013, HttpStatus.BAD_REQUEST, "error.att.invalid_year_month"),
 
     // --- Workflow (3xxx) ---
     WF_INSTANCE_NOT_FOUND(3001, HttpStatus.NOT_FOUND, "error.wf.instance_not_found"),

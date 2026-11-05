@@ -24,7 +24,7 @@ import type {
   UserUpdateRequest
 } from '@/types/iam'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const toast = useToast()
 const confirm = useConfirm()
 const authStore = useAuthStore()
@@ -109,9 +109,32 @@ const departmentMap = computed(() => {
   return map
 })
 
+function getRoleDisplayName(role: RoleResponse): string {
+  const locale = authStore.activeLocale
+  if (role.name && role.name[locale]) {
+    return role.name[locale] as string
+  }
+  if (role.localizedName) {
+    return role.localizedName
+  }
+  return te(`roleCodes.${role.code}`) ? t(`roleCodes.${role.code}`) : role.code
+}
+
+const roleCodeNameMap = computed(() => {
+  const map = new Map<string, string>()
+  for (const r of availableRoles.value) {
+    map.set(r.code, getRoleDisplayName(r))
+  }
+  return map
+})
+
+function formatRoleCodeLabel(code: string): string {
+  return roleCodeNameMap.value.get(code) || (te(`roleCodes.${code}`) ? t(`roleCodes.${code}`) : code)
+}
+
 const roleOptions = computed(() =>
   availableRoles.value.map((r) => ({
-    label: r.localizedName || r.code,
+    label: getRoleDisplayName(r),
     value: r.id
   }))
 )
@@ -631,7 +654,7 @@ function handleDeleteUser(user: UserResponse) {
               <Tag
                 v-for="rc in asUser(data).roleCodes"
                 :key="rc"
-                :value="rc"
+                :value="formatRoleCodeLabel(rc)"
                 severity="info"
                 class="role-tag"
               />

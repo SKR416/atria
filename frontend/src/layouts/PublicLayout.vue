@@ -37,24 +37,24 @@ function navigateTo(path: string) {
               size="small"
               severity="secondary"
               outlined
+              :label="t('halls.switchToPortal')"
               @click="navigateTo('/portal')"
             >
               <template #icon>
                 <UserCheck :size="16" class="btn-icon" />
               </template>
-              <span class="btn-label">{{ t('halls.switchToPortal') }}</span>
             </Button>
 
             <Button
               v-if="authStore.canAccessAdmin"
               size="small"
               severity="primary"
+              :label="t('halls.switchToAdmin')"
               @click="navigateTo('/admin/iam/departments')"
             >
               <template #icon>
                 <LayoutDashboard :size="16" class="btn-icon" />
               </template>
-              <span class="btn-label">{{ t('halls.switchToAdmin') }}</span>
             </Button>
           </template>
 
@@ -62,12 +62,12 @@ function navigateTo(path: string) {
             <Button
               size="small"
               severity="primary"
+              :label="t('auth.loginButton')"
               @click="navigateTo('/login')"
             >
               <template #icon>
                 <LogIn :size="16" class="btn-icon" />
               </template>
-              <span class="btn-label">{{ t('auth.loginButton') }}</span>
             </Button>
           </template>
         </div>
@@ -105,9 +105,8 @@ function navigateTo(path: string) {
 }
 
 .header-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0.75rem 1.5rem;
+  width: 100%;
+  padding: 0.75rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -186,16 +185,16 @@ function navigateTo(path: string) {
 }
 
 .footer-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  padding: 0 0.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .footer-version {
-  font-family: monospace;
-  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
   color: var(--atria-text-light, #64748b);
 }
 

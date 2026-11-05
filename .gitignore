@@ -64,8 +64,10 @@ application-local-secret.yml
 *.swo
 
 # =========================
-# OS Generated
+# OS Generated & Local Dev Caches
 # =========================
 .DS_Store
 Thumbs.db
 Desktop.ini
+graphify-out/
+

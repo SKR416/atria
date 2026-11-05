@@ -107,12 +107,12 @@ async function handleLogout() {
           severity="danger"
           text
           :loading="loggingOut"
+          :label="t('auth.logout')"
           @click="handleLogout"
         >
           <template #icon>
             <LogOut :size="15" class="logout-icon" />
           </template>
-          <span>{{ t('auth.logout') }}</span>
         </Button>
       </div>
     </header>

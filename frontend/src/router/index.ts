@@ -77,6 +77,18 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-iam-audit-logs',
         component: () => import('@/views/admin/iam/AuditLogView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true, permission: 'iam:audit:read' }
+      },
+      {
+        path: 'attendance/calendar',
+        name: 'admin-attendance-calendar',
+        component: () => import('@/views/admin/attendance/CalendarManageView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true, permission: 'att:calendar:read' }
+      },
+      {
+        path: 'attendance/monthly-close',
+        name: 'admin-attendance-monthly-close',
+        component: () => import('@/views/admin/attendance/MonthlyCloseView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true, permission: 'att:monthly-close:manage' }
       }
     ]
   },

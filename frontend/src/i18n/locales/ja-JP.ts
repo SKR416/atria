@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: '統合勤怠管理・電子稟議プラットフォーム',
-    version: 'v0.3.0'
+    version: 'v0.4.0'
   },
   common: {
     search: '検索',
@@ -34,6 +34,39 @@ export default {
     language: '言語切替',
     backToHome: 'ホームへ戻る'
   },
+  regions: {
+    all: 'すべての地域',
+    TW: '台湾カレンダー (TW)',
+    JP: '日本カレンダー (JP)'
+  },
+  timezones: {
+    'Asia/Taipei': '台北時間 (Asia/Taipei, UTC+8)',
+    'Asia/Tokyo': '東京時間 (Asia/Tokyo, UTC+9)',
+    UTC: '協定世界時 (UTC)',
+    'America/New_York': '米国東部時間 (America/New_York)',
+    'Europe/London': 'ロンドン時間 (Europe/London)'
+  },
+  roleCodes: {
+    SUPER_ADMIN: 'システム最高管理者',
+    HR_MANAGER: '人事管理者',
+    DEPT_MANAGER: '部門マネージャー',
+    EMPLOYEE: '一般社員'
+  },
+  permissionCodes: {
+    'iam:user:read': '社員アカウント照会',
+    'iam:user:write': '社員アカウント管理',
+    'iam:dept:read': '部門ツリー照会',
+    'iam:dept:write': '部門ツリー管理',
+    'iam:role:read': 'ロール・権限照会',
+    'iam:role:write': 'ロール・権限管理',
+    'iam:audit:read': '監査ログ照会',
+    'att:punch:self': '本人出退勤打刻',
+    'att:record:read': '勤怠実績照会',
+    'att:record:write': '勤怠実績修正',
+    'att:calendar:read': '勤務カレンダー・規則照会',
+    'att:calendar:write': '勤務カレンダー・規則管理',
+    'att:monthly-close:manage': '月次締め・日次集計管理'
+  },
   halls: {
     public: '公開お知らせホール',
     portal: '社員ポータル',
@@ -50,7 +83,10 @@ export default {
     departments: '部門ツリー管理',
     users: '社員アカウント管理',
     roles: 'ロール・権限設定',
-    auditLogs: '監査ログ照会'
+    auditLogs: '監査ログ照会',
+    attendanceGroup: '勤怠・カレンダー管理',
+    workCalendar: '地域別勤務カレンダー',
+    monthlyClose: '月次締め管理'
   },
   auth: {
     loginTitle: 'Atria システムログイン',
@@ -71,16 +107,27 @@ export default {
     dataScope: 'データ参照範囲'
   },
   publicHall: {
-    heroTitle: 'Atria 企業広報・公開インフォメーションセンター',
-    heroDesc: '社外向けのお知らせ、年間休日カレンダー、公式アナウンスを掲載しています。社員の方は右上よりポータルへログインしてください。',
-    noticeBoardTitle: '最新の公開お知らせ',
-    upcomingPhaseHint: 'リッチテキストお知らせ機能は Phase 5 で有効化されます。現在は公開ホールシェルを表示しています。',
-    sampleNotice1Title: '【システム】Atria 勤怠・稟議プラットフォーム Phase 2 リリースのお知らせ',
+    heroBadge: '企業勤怠・社内ポータル窓口',
+    heroTitle: 'Atria 企業広報・勤怠インフォメーションセンター',
+    heroDesc: '全社向けのお知らせ、日本・台湾拠点の年間休日カレンダー、および勤務規定をご確認いただけます。社員の方は右上よりログインしてください。',
+    noticeBoardTitle: '最新の社内・公開お知らせ',
+    noticeCountBadge: '公式通知',
+    categorySystem: 'システム通知',
+    categoryHr: '人事お知らせ',
+    regionTwLabel: '台湾拠点（台北）',
+    regionJpLabel: '日本拠点（東京）',
+    standardShiftHint: '所定勤務 09:00–18:00（休憩 12:00–13:00）',
+    featureCalendar: '日本・台湾の法定休日カレンダー対応',
+    featurePunch: 'タイムゾーン別Web打刻・月次カレンダー',
+    featureApproval: '部門階層権限・ワークフロー管理',
+    guideSectionTitle: 'プラットフォーム機能案内',
+    upcomingPhaseHint: '日々の出退勤打刻や月次勤務実績・休日カレンダーの照会は、「社員セルフサービス」へログインしてご利用ください。',
+    sampleNotice1Title: '【人事】2026年度 日本・台湾拠点 年間休日カレンダー公開のお知らせ',
     sampleNotice1Date: '2026-11-04',
-    sampleNotice1Summary: '日本語・繁体字中国語・英語の3言語リアルタイム切替および部門ツリーRBACに対応しました。',
-    sampleNotice2Title: '【人事】年間会社カレンダーおよび各拠点タイムゾーン設定について',
+    sampleNotice1Summary: '日本の国民の祝日（振替休日・国民の休日を含む）および台湾の法定休日に基づく年間カレンダーが公開されました。',
+    sampleNotice2Title: '【システム】拠点別タイムゾーン打刻および深夜04:00日付切替ルールのご案内',
     sampleNotice2Date: '2026-11-01',
-    sampleNotice2Summary: '拠点別タイムゾーンと出勤日カレンダー機能は Phase 3 にて公開予定です。'
+    sampleNotice2Summary: '打刻時刻は所属部門のタイムゾーンで自動計算され、午前04:00を論理日付の切替基準とし、12:00〜13:00の昼休憩が自動控除されます。'
   },
   portalHall: {
     welcomeTitle: 'お疲れ様です、{name} さん',
@@ -117,6 +164,7 @@ export default {
       noParent: '（なし - ルート部門）',
       leaderId: '部門長ユーザーID',
       timezone: 'タイムゾーン',
+      calendarCode: 'カレンダー地域',
       sortOrder: '表示順',
       treePath: '階層パス (Tree Path)',
       deleteConfirm: '部門「{name}」を削除しますか？（子部門または所属社員が存在する場合は削除できません）'
@@ -174,6 +222,113 @@ export default {
       detail: '詳細内容',
       clientIp: 'クライアントIP',
       timestamp: '発生日時 (UTC)'
+    }
+  },
+  attendance: {
+    dayTypes: {
+      WORKDAY: '所定労働日 (平日)',
+      MAKEUP_WORKDAY: '振替出勤日 (補班日)',
+      REST_DAY: '所定休日 (休息日)',
+      STATUTORY_REST_DAY: '法定休日 (例假日)',
+      NATIONAL_HOLIDAY: '国民の祝日 (国定祝日)'
+    },
+    statuses: {
+      NORMAL: '正常出勤',
+      LATE: '遅刻',
+      EARLY_LEAVE: '早退',
+      MISSING_PUNCH: '打刻漏れ',
+      ON_LEAVE: '休暇',
+      ABSENT: '欠勤',
+      HOLIDAY: '休日'
+    },
+    punchSources: {
+      WEB: 'Web自己打刻',
+      BOT: '公認Bot代理',
+      CORRECTION: '打刻修正承認'
+    },
+    portal: {
+      clockCardTitle: 'リアルタイム出退勤打刻',
+      logicalWorkDate: '論理勤務日',
+      cutoffHint: '日付変更時刻：午前 0{hour}:00（深夜残業の退勤打刻は前営業日に帰属します）',
+      scheduledShift: '所定勤務時間',
+      firstClockIn: '初回出勤打刻 (Raw)',
+      lastClockOut: '最終退勤打刻 (Raw)',
+      effectiveClockIn: '認定出勤時刻',
+      effectiveClockOut: '認定退勤時刻',
+      workedMinutes: '実労働時間（昼休憩1h控除済）',
+      minutesUnit: '{mins} 分',
+      hoursMinutesUnit: '{hours} 時間 {mins} 分',
+      punchButton: '今すぐ打刻する (出勤 / 退勤)',
+      punchNotePlaceholder: '打刻備考（任意：直行・直帰など）...',
+      punchSuccess: '打刻を記録しました！変更不可ログおよび日次勤怠を更新しました',
+      todayPunchLogs: '本日の生打刻履歴 (Append-Only)',
+      noPunchToday: '本日の打刻記録はまだありません',
+      monthlyCalendarTitle: '月次勤怠・勤務カレンダー照会',
+      prevMonth: '前月',
+      nextMonth: '翌月',
+      currentMonth: '今月',
+      monthClosedBadge: '月次締め済',
+      monthOpenBadge: '未締め',
+      kpiTotalHours: '当月総労働時間',
+      kpiNormalDays: '正常出勤日数',
+      kpiLateEarly: '遅刻 / 早退',
+      kpiAnomaly: '打刻漏れ / 欠勤',
+      dayDetailTitle: '日次勤怠・打刻詳細 — {date}'
+    },
+    calendar: {
+      title: '地域別勤務カレンダー・打刻規則管理',
+      subtitle: '日本 (JP) および台湾 (TW) の法定祝日テンプレート、振替出勤日、日付変更時刻の管理',
+      regionLabel: 'カレンダー地域',
+      yearLabel: '対象年',
+      monthLabel: '対象月',
+      generateYearBtn: '年間カレンダーを一括生成',
+      generateDialogTitle: '年間法定カレンダーテンプレート生成',
+      overwriteExisting: '既存の日付設定を上書きする',
+      generateConfirmHint: '選択した地域テンプレート（JP：内閣府祝日法・ハッピーマンデー・春分/秋分・振替休日・国民の休日、TW：旧暦祝日・振替休日）に基づき年間365/366日を生成します。生成後も人事で自由に個別調整可能です。',
+      generateSuccess: '年間勤務カレンダーを生成しました',
+      editDayTitle: 'カレンダー日付編集 — {date}',
+      dayType: '法定休日・勤務日区分',
+      workStartTime: '始業時刻',
+      workEndTime: '終業時刻',
+      breakStartTime: '休憩開始時刻',
+      breakEndTime: '休憩終了時刻',
+      holidayNameZh: '祝日名称 (zh-TW)',
+      holidayNameEn: '祝日名称 (en-US)',
+      holidayNameJa: '祝日名称 (ja-JP)',
+      note: '備考'
+    },
+    punchRule: {
+      title: '地域別打刻丸め・日付変更規則',
+      lateGraceMinutes: '遅刻猶予分数 (分)',
+      earlyLeaveGraceMinutes: '早退猶予分数 (分)',
+      clockInRoundingMinutes: '出勤打刻丸め単位 (分)',
+      clockOutRoundingMinutes: '退勤打刻丸め単位 (分)',
+      dayCutoffHour: '日付変更時刻 (0–12時)',
+      minPunchIntervalSeconds: '重複打刻防止間隔 (秒)',
+      maxRetroactiveDays: '事後申請許容日数上限',
+      autoMonthlyCloseDay: '毎月自動締め日 (0=無効)',
+      saveRuleBtn: '打刻規則を保存'
+    },
+    monthlyClose: {
+      title: '月次締め・日次締めバッチ管理',
+      subtitle: '給与計算用の月次勤怠ロック（未承認申請のブロック確認）および日次締め処理の実行',
+      closeMonthCard: '月次締めロック実行',
+      yearMonthLabel: '対象年月 (YYYY-MM)',
+      notePlaceholder: '締め処理・ロック解除の理由備考...',
+      checkBlockingBtn: '未承認申請を確認',
+      executeCloseBtn: '月次締めを実行',
+      reopenBtn: 'ロック解除 (再オープン)',
+      settlementCard: '日次締めバッチ処理 (Daily Settlement)',
+      settlementDesc: '各タイムゾーンの日付変更時刻後に前営業日の勤怠を自動確定（打刻漏れ・欠勤判定）します。日付を指定して手動実行することも可能です。',
+      settlementDateLabel: '対象勤務日',
+      runSettlementBtn: '日次締めを今すぐ実行',
+      settlementSuccess: '日次締め処理が完了しました（{count} 件処理）',
+      historyTitle: '月次締め履歴一覧',
+      closedAt: '締め日時',
+      closedBy: '実行者',
+      reopenedAt: '解除日時',
+      blockingAlertTitle: '月次締めブロック：未承認 (PENDING) の申請が残っています',
+      noBlockingRequests: '該当月に未承認の申請はありません。月次締めを実行できます'
     }
   }
 }

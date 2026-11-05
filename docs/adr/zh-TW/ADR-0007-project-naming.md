@@ -35,7 +35,8 @@
 2. **嚴格的模組與資料表前綴對齊：**
    - 將所有 `sys_*` 資料表重新命名為 `iam_*`（`iam_user`、`iam_department`、`iam_role`、`iam_permission`、`iam_audit_log`），以與 `iam` 模組一致。
    - 將 `sys_role_deputy` 移至 `workflow`（`wf_`）模組下並重新命名為 `wf_deputy`。
-   - 將 `att_leave_request` 重新命名為 `att_request`，並加入 `request_type` 欄位（`LEAVE` | `PUNCH_CORRECTION`）。
+   - 將 `att_leave_request` 重新命名為 `att_request`，並加入 `request_type` 欄位（`LEAVE` | `PUNCH_CORRECTION` | `OVERTIME`）。
+   - 為 Phase 4 導入的通知中心基礎底座增設 `ntf_*` 資料表前綴（見 [ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md)）。
 
 3. **文件與用詞紀律：**
    - 維護根目錄的三語 README（`README.md`、`README.zh-TW.md`、`README.ja.md`）與英文 ADR（`docs/adr/`）。

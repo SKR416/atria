@@ -96,6 +96,9 @@ public class DepartmentService {
         dept.setTimezone(req.timezone() != null && !req.timezone().isBlank()
                 ? req.timezone()
                 : (parent != null ? parent.getTimezone() : "Asia/Taipei"));
+        dept.setCalendarCode(req.calendarCode() != null && !req.calendarCode().isBlank()
+                ? req.calendarCode().trim().toUpperCase()
+                : (parent != null && parent.getCalendarCode() != null ? parent.getCalendarCode() : "TW"));
         dept.setSortOrder(req.sortOrder() != null ? req.sortOrder() : 0);
         dept.setTreePath("/");
 
@@ -166,6 +169,9 @@ public class DepartmentService {
         dept.setLeaderId(req.leaderId());
         if (req.timezone() != null && !req.timezone().isBlank()) {
             dept.setTimezone(req.timezone());
+        }
+        if (req.calendarCode() != null && !req.calendarCode().isBlank()) {
+            dept.setCalendarCode(req.calendarCode().trim().toUpperCase());
         }
         if (req.sortOrder() != null) {
             dept.setSortOrder(req.sortOrder());

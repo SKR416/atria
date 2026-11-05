@@ -48,6 +48,9 @@ public class Department extends BaseAuditEntity {
     @Column(name = "timezone", nullable = false, length = 64)
     private String timezone = "Asia/Taipei";
 
+    @Column(name = "calendar_code", nullable = false, length = 16)
+    private String calendarCode = "TW";
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 }

@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: 'Enterprise Attendance & Approval Platform',
-    version: 'v0.3.0'
+    version: 'v0.4.0'
   },
   common: {
     search: 'Search',
@@ -34,6 +34,39 @@ export default {
     language: 'Language',
     backToHome: 'Back to Home'
   },
+  regions: {
+    all: 'All Regions',
+    TW: 'Taiwan Calendar (TW)',
+    JP: 'Japan Calendar (JP)'
+  },
+  timezones: {
+    'Asia/Taipei': 'Taipei Time (Asia/Taipei, UTC+8)',
+    'Asia/Tokyo': 'Tokyo Time (Asia/Tokyo, UTC+9)',
+    UTC: 'Coordinated Universal Time (UTC)',
+    'America/New_York': 'Eastern Time (America/New_York)',
+    'Europe/London': 'London Time (Europe/London)'
+  },
+  roleCodes: {
+    SUPER_ADMIN: 'Super Administrator',
+    HR_MANAGER: 'HR Manager',
+    DEPT_MANAGER: 'Department Manager',
+    EMPLOYEE: 'Employee'
+  },
+  permissionCodes: {
+    'iam:user:read': 'View Users',
+    'iam:user:write': 'Manage Users',
+    'iam:dept:read': 'View Departments',
+    'iam:dept:write': 'Manage Departments',
+    'iam:role:read': 'View Roles & Permissions',
+    'iam:role:write': 'Manage Roles & Permissions',
+    'iam:audit:read': 'View Audit Logs',
+    'att:punch:self': 'Self-Service Clock-In',
+    'att:record:read': 'View Attendance Records',
+    'att:record:write': 'Modify Attendance Records',
+    'att:calendar:read': 'View Work Calendars & Rules',
+    'att:calendar:write': 'Manage Work Calendars & Rules',
+    'att:monthly-close:manage': 'Manage Monthly Closing & Settlement'
+  },
   halls: {
     public: 'Public Notice Hall',
     portal: 'Employee Portal',
@@ -50,7 +83,10 @@ export default {
     departments: 'Department Tree',
     users: 'User Management',
     roles: 'Roles & Permissions',
-    auditLogs: 'Audit Logs'
+    auditLogs: 'Audit Logs',
+    attendanceGroup: 'Attendance & Calendar',
+    workCalendar: 'Work Calendars',
+    monthlyClose: 'Monthly Closing'
   },
   auth: {
     loginTitle: 'Sign in to Atria',
@@ -71,16 +107,27 @@ export default {
     dataScope: 'Data Scope'
   },
   publicHall: {
-    heroTitle: 'Atria Corporate Notice & Public Information Center',
-    heroDesc: 'Public corporate announcements, holiday schedules, and external notices. Employees may sign in at the top right to access the self-service portal.',
-    noticeBoardTitle: 'Latest Public Announcements',
-    upcomingPhaseHint: 'Sanitized Tiptap rich-text announcements will go live in Phase 5. Displaying public hall shell.',
-    sampleNotice1Title: '[System] Atria Attendance & Approval Platform Phase 2 Released',
+    heroBadge: 'Corporate Attendance & Portal Hub',
+    heroTitle: 'Atria Corporate Announcements & Attendance Center',
+    heroDesc: 'Access official company announcements, regional holiday schedules for Taiwan and Japan offices, and attendance guidelines. Employees may sign in at the top right.',
+    noticeBoardTitle: 'Latest Corporate Announcements',
+    noticeCountBadge: 'Official Notices',
+    categorySystem: 'System Notice',
+    categoryHr: 'HR Announcement',
+    regionTwLabel: 'Taiwan Office (Taipei)',
+    regionJpLabel: 'Japan Office (Tokyo)',
+    standardShiftHint: 'Standard Shift 09:00–18:00 (Break 12:00–13:00)',
+    featureCalendar: 'Taiwan & Japan Statutory Calendars',
+    featurePunch: 'Cross-Timezone Clock-In & Monthly View',
+    featureApproval: 'Department Hierarchy & Approval Access',
+    guideSectionTitle: 'Platform Service Guide',
+    upcomingPhaseHint: 'Please sign in to the Employee Self-Service Portal to clock in/out and review your monthly attendance calendar.',
+    sampleNotice1Title: '[HR] 2026 Annual Corporate Work Calendars Published for TW & JP Offices',
     sampleNotice1Date: '2026-11-04',
-    sampleNotice1Summary: 'Featuring instant trilingual switching (zh-TW / en-US / ja-JP) and hierarchical department RBAC.',
-    sampleNotice2Title: '[HR] Annual Corporate Work Calendar & Regional Holiday Schedule',
+    sampleNotice1Summary: 'Annual statutory holidays, observed holidays, and makeup workdays for Taiwan and Japan regions are now available in the Employee Portal.',
+    sampleNotice2Title: '[System] Cross-Timezone Clock-In & 04:00 AM Day-Cutoff Guidelines',
     sampleNotice2Date: '2026-11-01',
-    sampleNotice2Summary: 'Department timezone cutoffs and makeup workday schedules will open in Phase 3.'
+    sampleNotice2Summary: 'Punches are automatically evaluated in your department timezone with a 04:00 AM logical day cutoff and 12:00–13:00 break deduction.'
   },
   portalHall: {
     welcomeTitle: 'Welcome back, {name}',
@@ -117,6 +164,7 @@ export default {
       noParent: '(None - Root Department)',
       leaderId: 'Leader User ID',
       timezone: 'Timezone',
+      calendarCode: 'Calendar Region',
       sortOrder: 'Sort Order',
       treePath: 'Tree Path',
       deleteConfirm: 'Delete department "{name}"? (Cannot delete if it has child departments or users)'
@@ -174,6 +222,113 @@ export default {
       detail: 'Details',
       clientIp: 'Client IP',
       timestamp: 'Timestamp (UTC)'
+    }
+  },
+  attendance: {
+    dayTypes: {
+      WORKDAY: 'Workday',
+      MAKEUP_WORKDAY: 'Makeup Workday',
+      REST_DAY: 'Rest Day (Scheduled)',
+      STATUTORY_REST_DAY: 'Statutory Rest Day',
+      NATIONAL_HOLIDAY: 'National Holiday'
+    },
+    statuses: {
+      NORMAL: 'Normal',
+      LATE: 'Late',
+      EARLY_LEAVE: 'Early Leave',
+      MISSING_PUNCH: 'Missing Punch',
+      ON_LEAVE: 'On Leave',
+      ABSENT: 'Absent',
+      HOLIDAY: 'Holiday'
+    },
+    punchSources: {
+      WEB: 'Web Portal',
+      BOT: 'Bot Proxy',
+      CORRECTION: 'Correction Request'
+    },
+    portal: {
+      clockCardTitle: 'Live Clock-In / Clock-Out',
+      logicalWorkDate: 'Logical Work Date',
+      cutoffHint: 'Day cutoff: 0{hour}:00 AM (late-night punches before cutoff belong to the prior workday)',
+      scheduledShift: 'Scheduled Shift',
+      firstClockIn: 'First Raw Clock-In',
+      lastClockOut: 'Last Raw Clock-Out',
+      effectiveClockIn: 'Effective Clock-In',
+      effectiveClockOut: 'Effective Clock-Out',
+      workedMinutes: 'Net Worked Time (1h lunch deducted)',
+      minutesUnit: '{mins} mins',
+      hoursMinutesUnit: '{hours}h {mins}m',
+      punchButton: 'Clock In / Out Now',
+      punchNotePlaceholder: 'Optional punch note (e.g. client visit)...',
+      punchSuccess: 'Punch recorded! Immutable log written and daily record updated.',
+      todayPunchLogs: "Today's Immutable Punch Logs (Append-Only)",
+      noPunchToday: 'No punch logs recorded for today yet',
+      monthlyCalendarTitle: 'Monthly Attendance & Work Calendar',
+      prevMonth: 'Prev Month',
+      nextMonth: 'Next Month',
+      currentMonth: 'This Month',
+      monthClosedBadge: 'Period Locked',
+      monthOpenBadge: 'Open',
+      kpiTotalHours: 'Monthly Worked Time',
+      kpiNormalDays: 'Normal Days',
+      kpiLateEarly: 'Late / Early Leave',
+      kpiAnomaly: 'Missing / Absent',
+      dayDetailTitle: 'Daily Attendance & Punch Logs — {date}'
+    },
+    calendar: {
+      title: 'Multi-Region Work Calendars & Punch Rules',
+      subtitle: 'Manage Taiwan (TW) and Japan (JP) statutory holiday templates, makeup workdays, and cutoff rules',
+      regionLabel: 'Calendar Region',
+      yearLabel: 'Year',
+      monthLabel: 'Month',
+      generateYearBtn: 'Generate Full Year Template',
+      generateDialogTitle: 'Generate Statutory Year Calendar',
+      overwriteExisting: 'Overwrite existing dates in this year',
+      generateConfirmHint: 'Generates all 365/366 days using the selected statutory template (TW lunar & solar holidays + observed rules; JP Cabinet Office holidays, Happy Monday, equinoxes, and substitute holidays). HR may freely edit any date afterwards.',
+      generateSuccess: 'Annual work calendar generated successfully',
+      editDayTitle: 'Edit Calendar Date — {date}',
+      dayType: 'Legal Day Type',
+      workStartTime: 'Work Start Time',
+      workEndTime: 'Work End Time',
+      breakStartTime: 'Break Start Time',
+      breakEndTime: 'Break End Time',
+      holidayNameZh: 'Holiday Name (zh-TW)',
+      holidayNameEn: 'Holiday Name (en-US)',
+      holidayNameJa: 'Holiday Name (ja-JP)',
+      note: 'Note'
+    },
+    punchRule: {
+      title: 'Regional Punch & Day Cutoff Rules',
+      lateGraceMinutes: 'Late Grace (mins)',
+      earlyLeaveGraceMinutes: 'Early Leave Grace (mins)',
+      clockInRoundingMinutes: 'Clock-In Rounding (mins)',
+      clockOutRoundingMinutes: 'Clock-Out Rounding (mins)',
+      dayCutoffHour: 'Cross-Midnight Cutoff Hour (0–12)',
+      minPunchIntervalSeconds: 'Min Duplicate Punch Interval (secs)',
+      maxRetroactiveDays: 'Max Retroactive Request Days',
+      autoMonthlyCloseDay: 'Auto Monthly Close Day (0=Off)',
+      saveRuleBtn: 'Save Punch Rules'
+    },
+    monthlyClose: {
+      title: 'Monthly Closing & Daily Settlement',
+      subtitle: 'Lock monthly attendance periods for payroll and run cross-midnight daily settlement',
+      closeMonthCard: 'Execute Monthly Closing Lock',
+      yearMonthLabel: 'Target Year-Month (YYYY-MM)',
+      notePlaceholder: 'Reason or remarks for closing / reopening...',
+      checkBlockingBtn: 'Check Blocking Requests',
+      executeCloseBtn: 'Close & Lock Month',
+      reopenBtn: 'Reopen Month',
+      settlementCard: 'Daily Cross-Midnight Settlement',
+      settlementDesc: 'Automatically settles the previous logical workday after each timezone cutoff hour (evaluating MISSING_PUNCH / ABSENT). HR can also trigger settlement manually.',
+      settlementDateLabel: 'Target Work Date',
+      runSettlementBtn: 'Run Settlement Now',
+      settlementSuccess: 'Daily settlement completed ({count} records processed)',
+      historyTitle: 'Monthly Closing History',
+      closedAt: 'Closed At',
+      closedBy: 'Closed By',
+      reopenedAt: 'Reopened At',
+      blockingAlertTitle: 'Monthly Close Blocked: Unresolved PENDING Requests Found',
+      noBlockingRequests: 'No pending requests found for this period; ready to close.'
     }
   }
 }

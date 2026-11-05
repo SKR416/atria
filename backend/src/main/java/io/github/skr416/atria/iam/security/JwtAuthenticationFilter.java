@@ -136,12 +136,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // Look up department treePath
+        // Look up department treePath, timezone, and calendarCode
         String departmentTreePath = null;
+        String departmentTimezone = "Asia/Taipei";
+        String departmentCalendarCode = "TW";
         if (user.getDepartmentId() != null) {
-            departmentTreePath = departmentRepository.findById(user.getDepartmentId())
-                    .map(Department::getTreePath)
-                    .orElse(null);
+            Optional<Department> deptOpt = departmentRepository.findById(user.getDepartmentId());
+            if (deptOpt.isPresent()) {
+                Department dept = deptOpt.get();
+                departmentTreePath = dept.getTreePath();
+                if (dept.getTimezone() != null && !dept.getTimezone().isBlank()) {
+                    departmentTimezone = dept.getTimezone();
+                }
+                if (dept.getCalendarCode() != null && !dept.getCalendarCode().isBlank()) {
+                    departmentCalendarCode = dept.getCalendarCode();
+                }
+            }
         }
 
         AtriaUserPrincipal principal = AtriaUserPrincipal.builder()
@@ -150,6 +160,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .displayName(user.getDisplayName())
                 .departmentId(user.getDepartmentId())
                 .departmentTreePath(departmentTreePath)
+                .departmentTimezone(departmentTimezone)
+                .departmentCalendarCode(departmentCalendarCode)
                 .locale(user.getLocale())
                 .enabled(user.isEnabled())
                 .mustChangePassword(user.isMustChangePassword())

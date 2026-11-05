@@ -11,8 +11,8 @@ This document tracks the vertical-slice implementation plan for **Atria** (*Atte
 | **Phase 0** | `v0.1.0-foundation` | Repository setup, ADRs, Spring Boot 3 skeleton (`atria-backend`), unified `ApiResponse<T>`, trilingual `ErrorCode` i18n | ✅ Completed |
 | **Phase 1** | `v0.2.0-iam` | IAM schema (`iam_*`), Spring Security 6 + JWT, RBAC, department tree with `leader_id`, `@DataScope`, `@AuditLog` | ✅ Completed |
 | **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 shell (`atria-frontend`), three layouts (`/public`, `/portal`, `/admin`), trilingual switcher, IAM admin UI, plus `iam_user.hire_date` (`V2`) | ✅ Completed |
-| **Phase 3a** | `v0.4.0-attendance-core` | Multi-region calendar (`TW`/`JP` templates), immutable `att_punch_log` + derived `att_daily_record`, punch rules & cutoff, bot punch, daily settlement, monthly closing, `/portal` clock-in & calendar, `/admin` calendar UI | ⏳ Next |
-| **Phase 3b** | `v0.4.5-leave-overtime` | Leave types & min units, seniority grant rules & job (`hire_date`), leave calculator, balance ledger, overtime rate/cap rules, comp leave conversion & expiry, approval event contract + dev/test approval stub | ⏳ Planned |
+| **Phase 3a** | `v0.4.0-attendance-core` | Multi-region calendar (`TW`/`JP` templates), immutable `att_punch_log` + derived `att_daily_record`, punch rules & cutoff, bot punch, daily settlement, monthly closing, `/portal` clock-in & calendar, `/admin` calendar UI | ✅ Completed |
+| **Phase 3b** | `v0.4.5-leave-overtime` | Leave types & min units, seniority grant rules & job (`hire_date`), leave calculator, balance ledger, overtime rate/cap rules, comp leave conversion & expiry, approval event contract + dev/test approval stub | ⏳ Next |
 | **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), structured-condition approval workflow (`wf_*`), approver fallback, deputy delegation (`wf_deputy`), notification foundation (`ntf_*`) & monthly leave digest | ⏳ Planned |
 | **Phase 5** | `v0.6.0-dashboard-notice` | Manager attendance dashboard, anomaly filtering, payroll weighted-hour Excel/CSV export, webhook bot notifications, public (`/public`) & internal (`/portal`) announcements (`ann_*`) | ⏳ Planned |
 | **Phase 6** | `v0.7.0-ai-suite` | Embedded AI chat (SSE), workplace text transformation, and asynchronous audio-to-text transcription (`ai_stt_job`) | ⏳ Planned |
@@ -46,12 +46,12 @@ This document tracks the vertical-slice implementation plan for **Atria** (*Atte
 - [x] Flyway migration `V2__add_user_hire_date.sql` (PostgreSQL & H2): add `iam_user.hire_date DATE` across Entity, DTOs, integration tests, and admin UI (`ADR-0008` Decision 11)
 
 ### Phase 3a: Attendance Core, Multi-Region Calendar & Employee Portal (`v0.4.0-attendance-core`)
-- [ ] Flyway migration `V3__init_attendance_core_schema.sql`: `iam_department.calendar_code`, `att_work_calendar` (`calendar_code`, legal day types `WORKDAY` | `MAKEUP_WORKDAY` | `REST_DAY` | `STATUTORY_REST_DAY` | `NATIONAL_HOLIDAY`), `att_punch_rule`, `att_punch_log` (append-only raw punches), `att_daily_record` (derived daily status & worked minutes), `att_monthly_close`
-- [ ] Multi-Region Work Calendar API & Year Generator: built-in `TW` and `JP` statutory holiday templates (generated in Java, editable by HR)
-- [ ] Clock-in / Clock-out & Bot Proxy API: write append-only `att_punch_log` (`WEB` | `BOT` | `CORRECTION` with HMAC anti-replay & real client IP) and derive `att_daily_record` with `day_cutoff_hour` (`04:00` AM) and 1-hour lunch break deduction
-- [ ] Daily Settlement Job & Monthly Closing Lock (`att_monthly_close`): finalize daily attendance statuses per timezone after cutoff; block monthly close while any `PENDING` request touches that month
-- [ ] Build `/portal` Employee Self-Service dashboard (live clock-in/out card + `@fullcalendar/vue3` monthly attendance & calendar view)
-- [ ] Build `/admin` HR Work Calendar (with `TW`/`JP` year generator) and Monthly Closing configuration UI
+- [x] Flyway migration `V3__init_attendance_core_schema.sql`: `iam_department.calendar_code`, `att_work_calendar` (`calendar_code`, legal day types `WORKDAY` | `MAKEUP_WORKDAY` | `REST_DAY` | `STATUTORY_REST_DAY` | `NATIONAL_HOLIDAY`), `att_punch_rule`, `att_punch_log` (append-only raw punches), `att_daily_record` (derived daily status & worked minutes), `att_monthly_close`
+- [x] Multi-Region Work Calendar API & Year Generator: built-in `TW` and `JP` statutory holiday templates (generated in Java, editable by HR)
+- [x] Clock-in / Clock-out & Bot Proxy API: write append-only `att_punch_log` (`WEB` | `BOT` | `CORRECTION` with HMAC anti-replay & real client IP) and derive `att_daily_record` with `day_cutoff_hour` (`04:00` AM) and 1-hour lunch break deduction
+- [x] Daily Settlement Job & Monthly Closing Lock (`att_monthly_close`): finalize daily attendance statuses per timezone after cutoff; block monthly close while any `PENDING` request touches that month
+- [x] Build `/portal` Employee Self-Service dashboard (live clock-in/out card + interactive 7-column monthly attendance & calendar view)
+- [x] Build `/admin` HR Work Calendar (with `TW`/`JP` year generator) and Monthly Closing configuration UI
 
 ### Phase 3b: Leave Ledger, Statutory Overtime & Approval Event Contract (`v0.4.5-leave-overtime`)
 - [ ] Flyway migration `V4__init_leave_overtime_schema.sql`: `att_leave_type` (`min_unit_minutes`), `att_leave_grant_rule`, `att_leave_balance`, `att_overtime_rate_rule`, `att_overtime_cap_rule`, `att_comp_leave_grant`, `att_request`

@@ -40,20 +40,33 @@ backend/src/main/java/io/github/skr416/atria/
 ├── AtriaApplication.java
 ├── common/
 │   ├── api/                    # ApiResponse<T>, PageResult<T>, ErrorCode
+│   ├── audit/                  # BaseAuditEntity
+│   ├── controller/             # HealthCheckController
+│   ├── crypto/                 # AesGcmCipher, AesGcmStringConverter (AES-256-GCM {v1})
 │   ├── exception/              # BusinessException, GlobalExceptionHandler
-│   ├── audit/                  # BaseAuditEntity, AuditLogAspect (@AuditLog)
-│   ├── notification/           # NotificationChannel (InApp, Email, WebhookBot)
-│   ├── export/                 # ExcelExportService (Apache POI SXSSF), CsvExportService
-│   └── storage/                # FileStorageService (LocalFileStorageService, etc.)
-├── config/                     # SecurityConfig, I18nConfig, OpenApiConfig, CorsConfig
-├── security/                   # JwtAuthenticationFilter, CurrentUser, DataScopeAspect
-└── modules/
-    ├── iam/                    # Users, Department Tree, Roles, Permissions, Audit Logs
-    ├── attendance/             # Corporate Work Calendar, Daily Punch, Leave & Punch Requests
-    ├── workflow/               # Dynamic Form Templates, Approval Flows, Instances, Deputies
-    ├── dashboard/              # Manager Attendance Overview & Anomaly Aggregation
-    ├── announcement/           # Public & Internal Announcements + Read Receipts
-    └── ai/                     # Chat Sessions, Workplace Text Transform, Async Audio STT
+│   ├── notification/           # NotificationChannel, NotificationMessage
+│   ├── storage/                # FileStorageService, LocalFileStorageService
+│   └── util/                   # ClientIpResolver, HmacSignatureVerifier
+├── config/                     # I18nConfig, OpenApiConfig, CorsConfig
+├── iam/                        # Phase 1–2 (Completed):
+│   ├── audit/                  # @AuditLog, AuditLogAspect
+│   ├── controller/             # Auth, Department, User, Role, AuditLog controllers
+│   ├── datascope/              # @DataScope, DataScopeAspect, DataScopeContext
+│   ├── dto/                    # Auth, Dept, User (with hireDate), Role DTOs
+│   ├── model/                  # User, Department, Role, Permission, AuditLogEntry, DataScopeType
+│   ├── repository/             # JPA repositories with partial unique index support
+│   ├── security/               # SecurityConfig, JwtAuthenticationFilter, JwtTokenService, AtriaUserPrincipal
+│   └── service/                # AuthService, DepartmentService, UserService, RoleService
+├── attendance/                 # Phase 3a (Completed) – Phase 3b:
+│   ├── controller/             # WorkCalendar, Punch, MonthlyClose controllers
+│   ├── dto/                    # Calendar, Punch, MonthlyOverview, MonthlyClose DTOs
+│   ├── model/                  # WorkCalendarDay, PunchRule, PunchLog, DailyAttendanceRecord, MonthlyCloseRecord + Enums
+│   ├── repository/             # JPA repositories for att_* tables + PendingRequestBlockingChecker SPI
+│   └── service/                # WorkCalendarService, StatutoryHolidayGenerator, PunchService, DailySettlementJob, MonthlyCloseService
+├── workflow/                   # Phase 4: Dynamic Form Templates, Approval Flows, Instances, Deputies, Notifications
+├── dashboard/                  # Phase 5: Manager Attendance Overview, Anomaly Filtering & Payroll Export
+├── announcement/               # Phase 5: Public & Internal Announcements + Read Receipts
+└── ai/                         # Phase 6: Chat Sessions, Workplace Text Transform, Async Audio STT
 ```
 
 ---

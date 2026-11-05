@@ -33,7 +33,8 @@ We also needed a memorable, collision-free project name that reflects the archit
 2. **Strict Module-to-Table Prefix Alignment:**
    - Rename all `sys_*` tables to `iam_*` (`iam_user`, `iam_department`, `iam_role`, `iam_permission`, `iam_audit_log`) to match the `iam` module.
    - Move and rename `sys_role_deputy` to `wf_deputy` under the `workflow` (`wf_`) module.
-   - Rename `att_leave_request` to `att_request` with a `request_type` column (`LEAVE` | `PUNCH_CORRECTION`).
+   - Rename `att_leave_request` to `att_request` with a `request_type` column (`LEAVE` | `PUNCH_CORRECTION` | `OVERTIME`).
+   - Add `ntf_*` prefix for the notification delivery foundation introduced in Phase 4 ([ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md)).
 
 3. **Documentation & Wording Discipline:**
    - Maintain trilingual root READMEs (`README.md`, `README.zh-TW.md`, `README.ja.md`) and English ADRs (`docs/adr/`).

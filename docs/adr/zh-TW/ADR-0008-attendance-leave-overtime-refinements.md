@@ -107,12 +107,10 @@
 
 ### 13. Phase 3 拆分
 
-| 子階段 | 範圍 |
-| :--- | :--- |
-| **3a — 差勤核心** | 行事曆 + TW/JP 模板、`att_punch_log` / `att_daily_record`、打卡規則與跨日分界、Bot 打卡、每日結算排程、月結關帳、`/portal` 打卡卡片與行事曆、`/admin` 行事曆 UI |
-| **3b — 請假與加班** | 假別與最小單位、給假規則與排程、請假計算器、假別餘額帳本、加班倍率／上限規則、補休帳本與到期折發工資、簽核事件契約 + 測試端點 Stub |
-
-確切的 Git Tag 將於 `ROADMAP.md` 更新時拍板定案。
+| 子階段 | 目標 Git Tag | 範圍 |
+| :--- | :--- | :--- |
+| **3a — 差勤核心** | `v0.4.0-attendance-core` | 行事曆 + TW/JP 模板、`att_punch_log` / `att_daily_record`、打卡規則與跨日分界、Bot 打卡、每日結算排程、月結關帳、`/portal` 打卡卡片與行事曆、`/admin` 行事曆 UI |
+| **3b — 請假與加班** | `v0.4.5-leave-overtime` | 假別與最小單位、給假規則與排程、請假計算器、假別餘額帳本、加班倍率／上限規則、補休帳本與到期折發工資、簽核事件契約 + 測試端點 Stub |
 
 ## 暫緩項目（明確不在當前階段）
 
@@ -126,4 +124,4 @@
 - 透過結構性設計保留勞動法規稽核完整性：原始打卡紀錄絕不變更。
 - 兩地法規均以資料（Data）而非程式碼（Code）形式呈現；新增營運區域僅需預載規則資料列與行事曆模板。
 - Phase 3 與 Phase 4 可藉由事件契約獨立進行開發與測試。
-- Phase 2 完成後，必須更新 `ROADMAP.md`、`ARCHITECTURE.md` 以及 ADR-0003 的資料表命名（`att_punch_record` → `att_punch_log` + `att_daily_record`）。
+- `ROADMAP.md`、`ARCHITECTURE.md` 以及 ADR-0003／ADR-0005 的資料表命名（`att_punch_record` → `att_punch_log` + `att_daily_record`）已於 Phase 2 完成時同步更新對齊。

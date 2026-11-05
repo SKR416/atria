@@ -54,6 +54,9 @@ atria:
     kek: ${ATRIA_CRYPTO_KEK:}
   storage:
     local-dir: ./uploads
+  attendance:
+    bot:
+      hmac-secret: ${ATRIA_BOT_HMAC_SECRET:}
   ai:
     stt-provider: mock
     whisper-cpp-url: http://127.0.0.1:8081/inference

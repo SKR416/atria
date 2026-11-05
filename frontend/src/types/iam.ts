@@ -17,6 +17,8 @@ export interface CurrentUserProfileResponse {
   email: string | null
   departmentId: number | null
   departmentTreePath: string | null
+  departmentTimezone?: string
+  departmentCalendarCode?: string
   locale: string
   mustChangePassword: boolean
   dataScope: DataScopeType
@@ -38,6 +40,7 @@ export interface DepartmentRequest {
   name: I18nMap
   leaderId: number | null
   timezone: string
+  calendarCode?: string
   sortOrder: number
 }
 
@@ -50,6 +53,7 @@ export interface DepartmentTreeNodeResponse {
   localizedName: string
   leaderId: number | null
   timezone: string
+  calendarCode?: string
   sortOrder: number
   children: DepartmentTreeNodeResponse[]
 }

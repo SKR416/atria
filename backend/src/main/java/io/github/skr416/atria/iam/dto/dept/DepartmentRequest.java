@@ -24,6 +24,19 @@ public record DepartmentRequest(
         @Size(max = 64, message = "Timezone must not exceed 64 characters")
         String timezone,
 
+        @Size(max = 16, message = "Calendar code must not exceed 16 characters")
+        String calendarCode,
+
         Integer sortOrder
 ) {
+    public DepartmentRequest(
+            Long parentId,
+            String code,
+            Map<String, String> name,
+            Long leaderId,
+            String timezone,
+            Integer sortOrder
+    ) {
+        this(parentId, code, name, leaderId, timezone, null, sortOrder);
+    }
 }

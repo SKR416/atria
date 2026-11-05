@@ -29,6 +29,9 @@ atria:
   crypto:
     # LOCAL DEVELOPMENT ONLY (Base64 of 32 bytes)
     kek: ${ATRIA_CRYPTO_KEK:bG9jYWwtZGV2LW9ubHktYWVzMjU2LWtlay0zMmJ5dGU=}
+  attendance:
+    bot:
+      hmac-secret: ${ATRIA_BOT_HMAC_SECRET:local-dev-only-bot-hmac-secret-0123456789}
 
 logging:
   level:

@@ -33,6 +33,12 @@ public record CurrentUserProfileResponse(
         @Schema(description = "Department materialized tree path", example = "/1/")
         String departmentTreePath,
 
+        @Schema(description = "Department timezone", example = "Asia/Taipei")
+        String departmentTimezone,
+
+        @Schema(description = "Department calendar code", example = "TW")
+        String departmentCalendarCode,
+
         @Schema(description = "User preferred locale", example = "zh-TW")
         String locale,
 
@@ -50,6 +56,16 @@ public record CurrentUserProfileResponse(
 ) {
 
     public static CurrentUserProfileResponse from(User user, DataScopeType dataScope, String departmentTreePath) {
+        return from(user, dataScope, departmentTreePath, "Asia/Taipei", "TW");
+    }
+
+    public static CurrentUserProfileResponse from(
+            User user,
+            DataScopeType dataScope,
+            String departmentTreePath,
+            String departmentTimezone,
+            String departmentCalendarCode
+    ) {
         if (user == null) {
             return null;
         }
@@ -78,6 +94,8 @@ public record CurrentUserProfileResponse(
                 .email(user.getEmail())
                 .departmentId(user.getDepartmentId())
                 .departmentTreePath(departmentTreePath)
+                .departmentTimezone(departmentTimezone != null ? departmentTimezone : "Asia/Taipei")
+                .departmentCalendarCode(departmentCalendarCode != null ? departmentCalendarCode : "TW")
                 .locale(user.getLocale())
                 .mustChangePassword(user.isMustChangePassword())
                 .dataScope(dataScope != null ? dataScope : DataScopeType.SELF_ONLY)
@@ -97,6 +115,8 @@ public record CurrentUserProfileResponse(
                 .email(email)
                 .departmentId(principal.getDepartmentId())
                 .departmentTreePath(principal.getDepartmentTreePath())
+                .departmentTimezone(principal.getDepartmentTimezone() != null ? principal.getDepartmentTimezone() : "Asia/Taipei")
+                .departmentCalendarCode(principal.getDepartmentCalendarCode() != null ? principal.getDepartmentCalendarCode() : "TW")
                 .locale(principal.getLocale())
                 .mustChangePassword(principal.isMustChangePassword())
                 .dataScope(principal.getDataScope() != null ? principal.getDataScope() : DataScopeType.SELF_ONLY)

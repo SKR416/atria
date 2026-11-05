@@ -85,12 +85,12 @@ function navigateTo(path: string) {
             size="small"
             severity="contrast"
             outlined
+            :label="t('halls.switchToAdmin')"
             @click="navigateTo('/admin/iam/departments')"
           >
             <template #icon>
               <LayoutDashboard :size="15" class="btn-icon" />
             </template>
-            <span class="btn-text">{{ t('halls.switchToAdmin') }}</span>
           </Button>
 
           <!-- Language Switcher -->
@@ -165,9 +165,8 @@ function navigateTo(path: string) {
 }
 
 .header-container {
-  max-width: 1300px;
-  margin: 0 auto;
-  padding: 0.625rem 1.25rem;
+  width: 100%;
+  padding: 0.625rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -192,7 +191,7 @@ function navigateTo(path: string) {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background: linear-gradient(135deg, #059669, #10b981);
+  background: linear-gradient(135deg, var(--atria-primary, #1e40af), #2563eb);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -218,9 +217,9 @@ function navigateTo(path: string) {
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background: var(--atria-primary-soft, #eff6ff);
+  color: var(--atria-primary, #1e40af);
+  border: 1px solid #bfdbfe;
 }
 
 .portal-nav {
@@ -314,11 +313,12 @@ function navigateTo(path: string) {
 
 .portal-main {
   flex: 1;
-  padding: 1.5rem;
+  padding: 1.5rem 2rem;
 }
 
 .main-container {
-  max-width: 1300px;
+  max-width: 1720px;
+  width: 100%;
   margin: 0 auto;
 }
 

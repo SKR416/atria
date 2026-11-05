@@ -16,7 +16,7 @@ import { useAuthStore } from '@/stores/auth'
 import type { DataScopeType } from '@/types/api'
 import type { RoleResponse, PermissionResponse, RoleRequest } from '@/types/iam'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const authStore = useAuthStore()
 const toast = useToast()
 const confirm = useConfirm()
@@ -82,12 +82,16 @@ const groupedPermissions = computed<ModulePermissionGroup[]>(() => {
 
 function getRoleDisplayName(role: RoleResponse): string {
   const loc = authStore.activeLocale
-  return role.localizedName || role.name?.[loc] || role.name?.['zh-TW'] || role.code
+  if (role.name?.[loc]) return role.name[loc] as string
+  if (te(`roleCodes.${role.code}`)) return t(`roleCodes.${role.code}`)
+  return role.localizedName || role.name?.['zh-TW'] || role.code
 }
 
 function getPermDisplayName(perm: PermissionResponse): string {
   const loc = authStore.activeLocale
-  return perm.localizedName || perm.name?.[loc] || perm.name?.['zh-TW'] || perm.code
+  if (perm.name?.[loc]) return perm.name[loc] as string
+  if (te(`permissionCodes.${perm.code}`)) return t(`permissionCodes.${perm.code}`)
+  return perm.localizedName || perm.name?.['zh-TW'] || perm.code
 }
 
 function getDataScopeSeverity(scope: DataScopeType): 'danger' | 'warn' | 'info' | 'secondary' {

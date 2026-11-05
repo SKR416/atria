@@ -14,7 +14,9 @@ import {
   Shield,
   LogOut,
   ExternalLink,
-  UserCheck
+  UserCheck,
+  CalendarDays,
+  LockKeyhole
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -106,6 +108,28 @@ function navigateTo(path: string) {
             <span class="nav-label">{{ t('nav.auditLogs') }}</span>
           </RouterLink>
         </nav>
+
+        <div class="nav-group-title" style="margin-top: 1.25rem">{{ t('nav.attendanceGroup') }}</div>
+
+        <nav class="sidebar-menu">
+          <RouterLink
+            to="/admin/attendance/calendar"
+            class="sidebar-nav-item"
+            active-class="sidebar-nav-item-active"
+          >
+            <CalendarDays :size="16" class="nav-icon" />
+            <span class="nav-label">{{ t('nav.workCalendar') }}</span>
+          </RouterLink>
+
+          <RouterLink
+            to="/admin/attendance/monthly-close"
+            class="sidebar-nav-item"
+            active-class="sidebar-nav-item-active"
+          >
+            <LockKeyhole :size="16" class="nav-icon" />
+            <span class="nav-label">{{ t('nav.monthlyClose') }}</span>
+          </RouterLink>
+        </nav>
       </div>
 
       <div class="sidebar-footer">
@@ -125,12 +149,12 @@ function navigateTo(path: string) {
             size="small"
             severity="secondary"
             outlined
+            :label="t('halls.switchToPortal')"
             @click="navigateTo('/portal')"
           >
             <template #icon>
               <UserCheck :size="15" class="topbar-btn-icon" />
             </template>
-            <span class="topbar-btn-text">{{ t('halls.switchToPortal') }}</span>
           </Button>
 
           <!-- Hall Switcher: Public Site -->
@@ -138,12 +162,12 @@ function navigateTo(path: string) {
             size="small"
             severity="secondary"
             text
+            :label="t('halls.switchToPublic')"
             @click="navigateTo('/public')"
           >
             <template #icon>
               <ExternalLink :size="14" class="topbar-btn-icon" />
             </template>
-            <span class="topbar-btn-text">{{ t('halls.switchToPublic') }}</span>
           </Button>
         </div>
 

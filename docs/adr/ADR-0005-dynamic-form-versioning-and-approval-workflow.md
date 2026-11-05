@@ -1,6 +1,6 @@
 # ADR-0005: Dynamic Form Versioning and Multi-Level Approval Workflow
 
-- **Status:** Accepted
+- **Status:** Accepted (refined by [ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md))
 - **Date:** 2026-10-28
 
 ## Context
@@ -26,8 +26,11 @@ Atria supports both built-in attendance requests (`att_request`: leave and punch
    - **Self-Approval Avoidance:** If the applicant is the leader of the current approval node, the engine automatically skips the step to the parent department's leader.
    - **Deputy Delegation (`wf_deputy`):** Delegated approvals log both the operator and the delegator IDs for strict compliance auditing.
    - **Optimistic Locking (`@Version`) & HR Force Reassign:** `wf_instance` and `att_leave_balance` enforce JPA `@Version` optimistic locking to prevent concurrent double-approvals by a leader and deputy. HR administrators can forcibly reassign pending tasks (`REASSIGN`) when an approver leaves or is unavailable, with full audit logging in `wf_task_log`.
-4. **Transactional Attendance Write-Back:**
-   - When a workflow instance linked to an `att_request` transitions to `APPROVED`, an application event updates `att_punch_record` within the same database transaction (`ON_LEAVE` for leave requests, `NORMAL` with corrected timestamps for punch-correction requests).
+4. **Transactional Attendance Write-Back (refined by [ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md)):**
+   - When a workflow instance linked to an `att_request` transitions to a terminal or revoked state, it publishes domain events (`AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent`) within the same database transaction:
+     - For `LEAVE`: commits frozen `pending_hours` into `used_hours` in `att_leave_balance` and updates `att_daily_record` (`ON_LEAVE`).
+     - For `PUNCH_CORRECTION`: appends an immutable `CORRECTION` row to `att_punch_log` and recomputes `att_daily_record`.
+     - For `OVERTIME`: records approved weighted overtime minutes or grants compensatory leave (`att_comp_leave_grant`).
 
 ## Consequences
 

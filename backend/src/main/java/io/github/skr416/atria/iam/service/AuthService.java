@@ -332,12 +332,28 @@ public class AuthService {
             }
         }
         String departmentTreePath = null;
+        String departmentTimezone = "Asia/Taipei";
+        String departmentCalendarCode = "TW";
         if (user.getDepartmentId() != null) {
-            departmentTreePath = departmentRepository.findById(user.getDepartmentId())
-                    .map(Department::getTreePath)
-                    .orElse(null);
+            Optional<Department> deptOpt = departmentRepository.findById(user.getDepartmentId());
+            if (deptOpt.isPresent()) {
+                Department dept = deptOpt.get();
+                departmentTreePath = dept.getTreePath();
+                if (dept.getTimezone() != null && !dept.getTimezone().isBlank()) {
+                    departmentTimezone = dept.getTimezone();
+                }
+                if (dept.getCalendarCode() != null && !dept.getCalendarCode().isBlank()) {
+                    departmentCalendarCode = dept.getCalendarCode();
+                }
+            }
         }
-        return CurrentUserProfileResponse.from(user, effectiveDataScope, departmentTreePath);
+        return CurrentUserProfileResponse.from(
+                user,
+                effectiveDataScope,
+                departmentTreePath,
+                departmentTimezone,
+                departmentCalendarCode
+        );
     }
 
     private ResponseCookie createRefreshCookie(String refreshToken, Duration maxAge) {

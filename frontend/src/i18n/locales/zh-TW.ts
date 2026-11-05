@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: '企業差勤與動態簽核管理平台',
-    version: 'v0.3.0'
+    version: 'v0.4.0'
   },
   common: {
     search: '搜尋',
@@ -34,6 +34,39 @@ export default {
     language: '語言切換',
     backToHome: '返回首頁'
   },
+  regions: {
+    all: '全部地區',
+    TW: '台灣行事曆 (TW)',
+    JP: '日本行事曆 (JP)'
+  },
+  timezones: {
+    'Asia/Taipei': '台北時間 (Asia/Taipei, UTC+8)',
+    'Asia/Tokyo': '東京時間 (Asia/Tokyo, UTC+9)',
+    UTC: '世界標準時間 (UTC)',
+    'America/New_York': '美東時間 (America/New_York)',
+    'Europe/London': '倫敦時間 (Europe/London)'
+  },
+  roleCodes: {
+    SUPER_ADMIN: '系統最高管理員',
+    HR_MANAGER: '人資管理員',
+    DEPT_MANAGER: '部門主管',
+    EMPLOYEE: '一般員工'
+  },
+  permissionCodes: {
+    'iam:user:read': '檢視員工帳號',
+    'iam:user:write': '管理員工帳號',
+    'iam:dept:read': '檢視部門組織樹',
+    'iam:dept:write': '管理部門組織樹',
+    'iam:role:read': '檢視角色與權限',
+    'iam:role:write': '管理角色與權限',
+    'iam:audit:read': '檢視系統稽核日誌',
+    'att:punch:self': '員工自助打卡',
+    'att:record:read': '檢視考勤紀錄',
+    'att:record:write': '調整考勤紀錄',
+    'att:calendar:read': '檢視企業行事曆與規則',
+    'att:calendar:write': '管理企業行事曆與規則',
+    'att:monthly-close:manage': '執行月結關帳與日結'
+  },
   halls: {
     public: '外部公告大廳',
     portal: '員工自助大廳',
@@ -50,7 +83,10 @@ export default {
     departments: '部門組織樹',
     users: '員工帳號管理',
     roles: '角色與權限配置',
-    auditLogs: '系統稽核日誌'
+    auditLogs: '系統稽核日誌',
+    attendanceGroup: '差勤與行事曆管理',
+    workCalendar: '多地區企業行事曆',
+    monthlyClose: '月結關帳管理'
   },
   auth: {
     loginTitle: '登入 Atria 企業平台',
@@ -71,16 +107,27 @@ export default {
     dataScope: '資料範圍'
   },
   publicHall: {
-    heroTitle: 'Atria 企業公告與招募資訊中心',
-    heroDesc: '公開透明的企業公告、假日行事曆與外部通知平台。內部同仁請點擊右上角登入自助大廳。',
-    noticeBoardTitle: '最新公開公告',
-    upcomingPhaseHint: '公開富文本公告系統將於 Phase 5 正式啟用，目前展示系統公開資訊殼層。',
-    sampleNotice1Title: '【系統公告】Atria 差勤與簽核平台 Phase 2 正式上線',
+    heroBadge: '企業差勤與簽核入口網站',
+    heroTitle: 'Atria 企業公告與出勤服務中心',
+    heroDesc: '提供全體同仁查閱企業公開公告、台日據點國定假日行事曆與標準出勤規範。內部同仁請點擊右上角登入員工自助大廳。',
+    noticeBoardTitle: '最新企業公開公告',
+    noticeCountBadge: '公開通知',
+    categorySystem: '系統通知',
+    categoryHr: '人資公告',
+    regionTwLabel: '台灣據點（台北）',
+    regionJpLabel: '日本據點（東京）',
+    standardShiftHint: '標準班表 09:00–18:00（午休 12:00–13:00）',
+    featureCalendar: '支援台日雙地區法定行事曆',
+    featurePunch: '跨時區線上打卡與出勤月曆',
+    featureApproval: '多層級部門權限與表單簽核',
+    guideSectionTitle: '平台服務分區導覽',
+    upcomingPhaseHint: '如需辦理日常上下班打卡、查閱個人出勤紀錄或確認國定假日班表，請登入「員工自助廳」。',
+    sampleNotice1Title: '【人資公告】2026 年度台灣與日本據點企業行事曆已發布',
     sampleNotice1Date: '2026-11-04',
-    sampleNotice1Summary: '支援繁體中文、英文、日文三語即時切換與企業組織樹權限控管。',
-    sampleNotice2Title: '【人資公告】年度企業行事曆與國定假日預告',
+    sampleNotice1Summary: '本年度台灣（勞基法紀念日與補假）與日本（內閣府國民祝日與振替休日）行事曆已同步更新，同仁可於員工自助廳查詢每月班表。',
+    sampleNotice2Title: '【系統通知】跨時區出勤打卡與凌晨跨日切算規範說明',
     sampleNotice2Date: '2026-11-01',
-    sampleNotice2Summary: '各分部時區與補班日曆規範將於 Phase 3 差勤模組開放查詢。'
+    sampleNotice2Summary: '系統依所屬部門時區自動換算打卡時間，每日跨日切算點為凌晨 04:00，並自動扣除 12:00–13:00 午休時段。'
   },
   portalHall: {
     welcomeTitle: '早安，{name}',
@@ -117,6 +164,7 @@ export default {
       noParent: '（無上層 - 根部門）',
       leaderId: '部門主管 ID',
       timezone: '所屬時區',
+      calendarCode: '行事曆地區',
       sortOrder: '排序權重',
       treePath: '階層路徑 (Tree Path)',
       deleteConfirm: '確定要刪除部門「{name}」嗎？（若含子部門或員工將無法刪除）'
@@ -174,6 +222,113 @@ export default {
       detail: '詳細記錄',
       clientIp: '來源 IP',
       timestamp: '發生時間 (UTC)'
+    }
+  },
+  attendance: {
+    dayTypes: {
+      WORKDAY: '平日 (工作日)',
+      MAKEUP_WORKDAY: '補班日',
+      REST_DAY: '休息日 (所定休日)',
+      STATUTORY_REST_DAY: '例假日 (法定休日)',
+      NATIONAL_HOLIDAY: '國定假日 (祝日)'
+    },
+    statuses: {
+      NORMAL: '正常出勤',
+      LATE: '遲到',
+      EARLY_LEAVE: '早退',
+      MISSING_PUNCH: '缺卡異常',
+      ON_LEAVE: '請假',
+      ABSENT: '曠職',
+      HOLIDAY: '休假日'
+    },
+    punchSources: {
+      WEB: 'Web 自助打卡',
+      BOT: '企業 Bot 代理',
+      CORRECTION: '補打卡簽核'
+    },
+    portal: {
+      clockCardTitle: '即時上下班打卡',
+      logicalWorkDate: '邏輯歸屬出勤日',
+      cutoffHint: '跨日切算點：凌晨 0{hour}:00（夜班/跨夜加班自動歸屬前一工作日）',
+      scheduledShift: '表定班表時間',
+      firstClockIn: '首筆上班打卡',
+      lastClockOut: '末筆下班打卡',
+      effectiveClockIn: '有效認列上班',
+      effectiveClockOut: '有效認列下班',
+      workedMinutes: '有效工時（已扣午休）',
+      minutesUnit: '{mins} 分鐘',
+      hoursMinutesUnit: '{hours} 小時 {mins} 分',
+      punchButton: '立即打卡 (上 / 下班)',
+      punchNotePlaceholder: '選填打卡備註（例如：外勤拜訪客戶）...',
+      punchSuccess: '打卡成功！已寫入不可竄改軌跡並更新今日出勤彙總',
+      todayPunchLogs: '今日原始打卡軌跡 (Append-Only)',
+      noPunchToday: '今日尚無打卡紀錄',
+      monthlyCalendarTitle: '個人月度出勤與行事曆檢視',
+      prevMonth: '上個月',
+      nextMonth: '下個月',
+      currentMonth: '本月',
+      monthClosedBadge: '已月結鎖定',
+      monthOpenBadge: '未關帳',
+      kpiTotalHours: '本月累計工時',
+      kpiNormalDays: '正常出勤天數',
+      kpiLateEarly: '遲到 / 早退',
+      kpiAnomaly: '缺卡 / 曠職',
+      dayDetailTitle: '單日考勤與打卡明細 — {date}'
+    },
+    calendar: {
+      title: '多地區企業行事曆與打卡規則',
+      subtitle: '管理台灣 (TW) 與日本 (JP) 法定假日範本、補班日設定與跨日切算規則',
+      regionLabel: '行事曆地區',
+      yearLabel: '年份',
+      monthLabel: '月份',
+      generateYearBtn: '一鍵產生整年行事曆範本',
+      generateDialogTitle: '產生年度法定行事曆範本',
+      overwriteExisting: '覆寫該年度已存在之日期設定',
+      generateConfirmHint: '系統將依所選地區（TW 含農曆春節/端午/中秋與補假；JP 含內閣府祝日法、Happy Monday、春分/秋分與振替休日）自動產生整年 365/366 天行事曆，人資可於產生後自由微調。',
+      generateSuccess: '年度行事曆範本產生完成',
+      editDayTitle: '編輯日期行事曆 — {date}',
+      dayType: '法定日別類型',
+      workStartTime: '表定上班時間',
+      workEndTime: '表定下班時間',
+      breakStartTime: '午休開始時間',
+      breakEndTime: '午休結束時間',
+      holidayNameZh: '假日/補班名稱 (繁中)',
+      holidayNameEn: '假日/補班名稱 (英文)',
+      holidayNameJa: '假日/補班名稱 (日文)',
+      note: '備註說明'
+    },
+    punchRule: {
+      title: '地區打卡與跨日切算規則設定',
+      lateGraceMinutes: '遲到寬限分鐘數',
+      earlyLeaveGraceMinutes: '早退寬限分鐘數',
+      clockInRoundingMinutes: '上班打卡取整單位 (分)',
+      clockOutRoundingMinutes: '下班打卡取整單位 (分)',
+      dayCutoffHour: '跨日切算小時 (0–12時)',
+      minPunchIntervalSeconds: '防重複打卡間隔 (秒)',
+      maxRetroactiveDays: '補登申請允許天數上限',
+      autoMonthlyCloseDay: '每月自動關帳日 (0=停用)',
+      saveRuleBtn: '儲存打卡規則'
+    },
+    monthlyClose: {
+      title: '月結關帳與日結排程管理',
+      subtitle: '執行考勤月份關帳鎖定（阻擋未決申請單與事後異動）及手動觸發跨日結算',
+      closeMonthCard: '執行月結關帳鎖定',
+      yearMonthLabel: '目標年月 (YYYY-MM)',
+      notePlaceholder: '關帳或重開原因備註...',
+      checkBlockingBtn: '檢查未決申請單',
+      executeCloseBtn: '執行月結關帳',
+      reopenBtn: '解除鎖定 (重開)',
+      settlementCard: '每日跨日日結作業 (Daily Settlement)',
+      settlementDesc: '系統每日於各時區跨日切算點後自動結算前一邏輯工作日（產生缺卡/曠職狀態）。人資亦可指定日期手動立即執行日結。',
+      settlementDateLabel: '結算目標日期',
+      runSettlementBtn: '立即執行日結',
+      settlementSuccess: '日結作業執行完成，共結算 {count} 筆紀錄',
+      historyTitle: '月結關帳歷史紀錄',
+      closedAt: '關帳時間',
+      closedBy: '關帳人員',
+      reopenedAt: '重開時間',
+      blockingAlertTitle: '無法執行月結關帳：尚有未簽核結案 (PENDING) 之申請單',
+      noBlockingRequests: '該月份無未決申請單，可安全執行月結關帳'
     }
   }
 }

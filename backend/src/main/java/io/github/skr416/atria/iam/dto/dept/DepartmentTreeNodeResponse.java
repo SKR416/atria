@@ -28,6 +28,7 @@ public class DepartmentTreeNodeResponse {
     private String localizedName;
     private Long leaderId;
     private String timezone;
+    private String calendarCode;
     private int sortOrder;
 
     @Builder.Default
@@ -43,6 +44,7 @@ public class DepartmentTreeNodeResponse {
                 .localizedName(resolveLocalizedName(dept.getName(), locale))
                 .leaderId(dept.getLeaderId())
                 .timezone(dept.getTimezone())
+                .calendarCode(dept.getCalendarCode())
                 .sortOrder(dept.getSortOrder())
                 .children(new ArrayList<>())
                 .build();

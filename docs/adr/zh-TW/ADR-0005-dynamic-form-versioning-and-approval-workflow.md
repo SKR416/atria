@@ -2,7 +2,7 @@
 
 > 本文件為 [ADR-0005 英文版](../ADR-0005-dynamic-form-versioning-and-approval-workflow.md) 之中文譯本；如有歧義，以英文版為準。
 
-- **狀態：** 已採納
+- **狀態：** 已採納（部分由 [ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md) 補充修訂）
 - **日期：** 2026-10-28
 
 ## 背景
@@ -28,8 +28,11 @@ Atria 同時支援內建差勤申請（`att_request`：請假與補卡）以及�
    - **自我簽核迴避：** 若申請人即為目前簽核關卡的主管，引擎會自動將該關卡跳過至上級部門主管。
    - **代理簽核（`wf_deputy`）：** 代理簽核會同時記錄操作者與委託人的 ID，以利嚴格的合規性稽核。
    - **樂觀鎖（`@Version`）與人資強制改派：** `wf_instance` 與 `att_leave_balance` 強制實施 JPA `@Version` 樂觀鎖，以防止主管與代理人同時進行重複核准。當簽核人離職或無法處理時，人資管理員可強制改派待辦任務（`REASSIGN`），並於 `wf_task_log` 中留下完整稽核日誌。
-4. **交易性差勤回寫：**
-   - 當連結至 `att_request` 的簽核流程實例轉移為 `APPROVED` 時，應用程式事件會在同一個資料庫交易內更新 `att_punch_record`（請假申請為 `ON_LEAVE`，補卡申請為更正時間戳記後的 `NORMAL`）。
+4. **交易性差勤回寫（由 [ADR-0008](./ADR-0008-attendance-leave-overtime-refinements.md) 補充修訂）：**
+   - 當連結至 `att_request` 的簽核流程實例進入終態或抽單時，會在同一個資料庫交易內發布領域事件（`AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent`）：
+     - `LEAVE`（請假）：將 `att_leave_balance` 中凍結的 `pending_hours` 轉為 `used_hours`，並更新 `att_daily_record` 為 `ON_LEAVE`。
+     - `PUNCH_CORRECTION`（補卡）：於 `att_punch_log` 新增一筆 `CORRECTION` 來源紀錄，並重新計算 `att_daily_record`。
+     - `OVERTIME`（加班）：認列核准之加權加班分鐘數或轉入補休發放帳本（`att_comp_leave_grant`）。
 
 ## 影響
 

@@ -105,12 +105,10 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
 
 ### 13. Phase 3 Split
 
-| Sub-phase | Scope |
-| :--- | :--- |
-| **3a — Attendance Core** | Calendar + TW/JP templates, `att_punch_log` / `att_daily_record`, punch rules & cutoff, bot punch, daily settlement job, monthly closing, `/portal` clock-in card & calendar, `/admin` calendar UI |
-| **3b — Leave & Overtime** | Leave types & minimum units, grant rules & job, leave calculator, balance ledger, overtime rate/cap rules, comp leave ledger & expiry payout, approval event contract + test stub |
-
-Exact Git tags are finalized when `ROADMAP.md` is updated.
+| Sub-phase | Target Tag | Scope |
+| :--- | :--- | :--- |
+| **3a — Attendance Core** | `v0.4.0-attendance-core` | Calendar + TW/JP templates, `att_punch_log` / `att_daily_record`, punch rules & cutoff, bot punch, daily settlement job, monthly closing, `/portal` clock-in card & calendar, `/admin` calendar UI |
+| **3b — Leave & Overtime** | `v0.4.5-leave-overtime` | Leave types & minimum units, grant rules & job, leave calculator, balance ledger, overtime rate/cap rules, comp leave ledger & expiry payout, approval event contract + test stub |
 
 ## Deferred (Explicitly Not Now)
 
@@ -124,4 +122,4 @@ Exact Git tags are finalized when `ROADMAP.md` is updated.
 - Labor-audit integrity is preserved by construction: raw punches are never mutated.
 - Statutory rules for two jurisdictions are data, not code; adding a region means seeding rule rows and a calendar template.
 - Phase 3 and Phase 4 can be developed and tested independently through the event contract.
-- `ROADMAP.md`, `ARCHITECTURE.md`, and ADR-0003 table naming (`att_punch_record` → `att_punch_log` + `att_daily_record`) must be updated after Phase 2 completes.
+- `ROADMAP.md`, `ARCHITECTURE.md`, and ADR-0003/ADR-0005 table naming (`att_punch_record` → `att_punch_log` + `att_daily_record`) have been aligned upon Phase 2 completion.
