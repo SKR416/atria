@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${PG_TEST_DB_URL:jdbc:postgresql://localhost:5432/atria_test}
+    driver-class-name: org.postgresql.Driver
+    username: ${PG_TEST_DB_USER:atria}
+    password: ${PG_TEST_DB_PASSWORD:atria_secret}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/postgresql
+
+atria:
+  security:
+    jwt:
+      # Test defaults matching application-local.yml for out-of-the-box pgtest execution
+      secret: ${ATRIA_JWT_SECRET:local-dev-only-jwt-secret-change-me-0123456789abcdef}
+    refresh-cookie:
+      secure: ${ATRIA_COOKIE_SECURE:false}
+    bootstrap-admin:
+      password: ${ATRIA_BOOTSTRAP_ADMIN_PASSWORD:Admin@12345}
+  crypto:
+    kek: ${ATRIA_CRYPTO_KEK:bG9jYWwtZGV2LW9ubHktYWVzMjU2LWtlay0zMmJ5dGU=}
+  attendance:
+    bot:
+      hmac-secret: ${ATRIA_BOT_HMAC_SECRET:local-dev-only-bot-hmac-secret-0123456789}
+
+logging:
+  level:
+    io.github.skr416.atria: DEBUG

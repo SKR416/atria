@@ -4,7 +4,7 @@
 
 > **目前開發進度：** `Phase 3a — 差勤核心、多地區行事曆與員工自助入口（已完成，v0.4.0-attendance-core）`  
 > **下一階段：** `Phase 3b — 假別額度帳本、台日法定加班與簽核事件契約（v0.4.5-leave-overtime）`  
-> 目前已完成 Phase 0–3a 實作與驗證（後端 17 項整合測試 + 前端 TypeScript 與 Vite 建置通過）。完整開發時程與交接清單請參閱 [docs/ROADMAP.md](./docs/ROADMAP.md) 與 [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)。
+> 目前已完成 Phase 0–3a 實作與驗證（後端 24 項測試含 ArchUnit 與 DB 防竄改測試 + 前端 ESLint、TypeScript 與 Vite 建置通過）。完整開發時程與交接清單請參閱 [docs/ROADMAP.md](./docs/ROADMAP.md) 與 [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)。
 
 Atria 是一套整合差勤管理與申請審批流程的企業級平台。員工可打卡、提出請假、補打卡與加班申請，由直屬主管與 HR 透過多層級流程審批，核准後自動回寫差勤紀錄與假別額度。後端採 Spring Boot 3.3，前端採 Vue 3.5，為模組化單體架構，具備 RBAC、部門子樹資料範圍隔離 (`@DataScope`)、動態表單與三語系（繁中／英／日）支援。
 
@@ -48,8 +48,9 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 - **Phase 3a — 差勤核心、多地區行事曆與員工自助入口 (`v0.4.0-attendance-core`)：**
   - Flyway `V3__init_attendance_core_schema.sql`（PostgreSQL 16 與 H2 雙版本）：`iam_department.calendar_code`、`att_work_calendar`（`WORKDAY`、`MAKEUP_WORKDAY`、`REST_DAY`、`STATUTORY_REST_DAY`、`NATIONAL_HOLIDAY`）、`att_punch_rule`、不可變原始打卡表 `att_punch_log`、每日衍生考勤表 `att_daily_record`（含 `@Version` 樂觀鎖）與月結關帳表 `att_monthly_close`。
   - **台日多地區行事曆與整年範本產生器 (`WorkCalendarService`, `StatutoryHolidayGenerator`)：** 內建台灣（`TW` 國定假日、農曆春節/端午/中秋與週末補假）與日本（`JP` 內閣府國民之祝日、Happy Monday、春秋分天文近似公式、振替休日與國民之休日）整年 365/366 天產生器，支援 HR 逐日覆寫補班日與自訂地區打卡規則。
-  - **不可變打卡帳本與當日考勤即時派生 (`PunchService`)：** 支援員工 Web 打卡 (`/api/v1/attendance/punch`) 與 `HMAC-SHA256` ±5 分鐘防重送之代理 Bot 打卡 (`/api/v1/attendance/bot/punch`)、60 秒防重複打卡 (`ErrorCode 2001`)、`04:00 AM` 跨日切算、上下班取整與寬限期計算、以及自動扣除 `12:00`–`13:00` 午休 60 分鐘之淨工時派生。
+  - **不可變打卡帳本與當日考勤即時派生 (`PunchService`)：** 支援員工 Web 打卡 (`/api/v1/attendance/punch`) 與 `HMAC-SHA256` ±5 分鐘防重送之代理 Bot 打卡 (`/api/v1/attendance/bot/punch`)、`att_punch_log` 雙層不可竄改保護（PostgreSQL `BEFORE UPDATE OR DELETE` 觸發器 `trg_att_punch_log_immutable` + JPA `@Immutable` / `@PreUpdate` / `@PreRemove`）、60 秒防重複打卡 (`ErrorCode 2001`)、`04:00 AM` 跨日切算、上下班取整與寬限期計算、以及自動扣除 `12:00`–`13:00` 午休 60 分鐘之淨工時派生。
   - **每日跨日日結排程與月結關帳鎖定 (`DailySettlementJob`, `MonthlyCloseService`)：** 跨日切算點後自動結算前一日 `MISSING_PUNCH` / `ABSENT` 狀態；月結關帳透過 `PendingRequestBlockingChecker` SPI 檢查未決 `PENDING` 單據阻擋關帳 (`ErrorCode 2010`)、拒絕已關帳月份異動 (`ErrorCode 2005`) 並支援 HR 解鎖重開。
+  - **架構邊界自動化測試與 CI 驗證 (`ModularArchitectureTest`, `.github/workflows/ci.yml`)：** 5 條 ArchUnit 規則強制鎖死 ADR-0001 模組化單體邊界、GitHub Actions 內建 PostgreSQL 16 + H2 雙引擎測試管線（`pgtest` profile）與前端 ESLint 9 抓錯規則。
   - **前端員工自助大廳與人資差勤後台：**
     - **員工自助入口 (`PortalHomeView.vue`)：** 部門時區即時時鐘、一鍵打卡與 Append-only 原始打卡明細、當月 KPI 指標條，以及互動式 7 欄月曆與單日考勤詳情彈窗。
     - **多地區行事曆與打卡規則管理 (`CalendarManageView.vue`)：** `TW`/`JP` 視覺化月曆編輯器、一鍵產生整年範本彈窗、單日覆寫與地區打卡規則設定。
@@ -74,6 +75,7 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 
 ```text
 atria/
+├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
 │   ├── ROADMAP.md                # 開發階段里程碑與 Git Tag 規劃 (Phase 0 至 Phase 6)
 │   ├── ARCHITECTURE.md           # 模組化單體套件結構與資料表前綴總覽
@@ -90,7 +92,7 @@ atria/
 │       ├── main/resources/
 │       │   ├── db/migration/     # Flyway V1–V3 SQL 遷移腳本 (postgresql/ 與 h2/)
 │       │   └── i18n/             # 三語系訊息檔 (zh_TW, en_US, ja_JP)
-│       └── test/                 # Phase 1 IAM 與 Phase 3a Attendance 端到端整合測試 (17 項)
+│       └── test/                 # IAM、Attendance、防竄改與 ArchUnit 架構測試 (24 項)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
     └── src/
         ├── api/                  # Axios HTTP 客戶端 (JWT 自動換證與 1003 攔截) 與 IAM / Attendance API

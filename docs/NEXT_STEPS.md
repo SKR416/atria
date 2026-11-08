@@ -7,7 +7,7 @@
 ## 一、 目前進度與專案現況 (Current Status)
 
 - **專案路徑**：`C:\Users\a1083\OneDrive\文件\atria`
-- **Git 狀態**：`main` 分支，Phase 0 (`v0.1.0-foundation`)、Phase 1 (`v0.2.0-iam`)、Phase 2 (`v0.3.0-frontend-shell`) 與 Phase 3a (`v0.4.0-attendance-core`) 已完成實作與驗證（通過後端 17 項整合測試 + 前端 `vue-tsc` 與 `vite build` 打包）
+- **Git 狀態**：`main` 分支，Phase 0 (`v0.1.0-foundation`)、Phase 1 (`v0.2.0-iam`)、Phase 2 (`v0.3.0-frontend-shell`)、Phase 3a (`v0.4.0-attendance-core`) 與 Phase 3a.5（品質閘門、ArchUnit 架構測試與 `att_punch_log` 雙層防竄改加固）已完成實作與驗證（通過後端 24 項測試 + 前端 `npm run lint` 0 警告與 `npm run build` 打包）
 - **已完成工作**：
   - [x] **Phase 0 基礎底座 (`v0.1.0-foundation`)**：Monorepo 結構、三語 README、ADR 文件群、Spring Boot 3.3.5 + Java 21 骨架、統一響應 `ApiResponse<T>` / `PageResult<T>`、三語 `ErrorCode` i18n、`ClientIpResolver`、`HmacSignatureVerifier`。
   - [x] **Phase 1 IAM 與權限核心 (`v0.2.0-iam`)**：
@@ -28,6 +28,10 @@
     - [x] Web 與代理 Bot 打卡引擎 (`PunchService`)：Append-only `att_punch_log`（含 `ClientIpResolver` 真實 IP 與 `HmacSignatureVerifier` `HMAC-SHA256` ±5 分鐘防重放驗證）、60 秒防重複打卡 (`2001`)、`04:00 AM` 跨日切算、上下班取整與寬限期、以及固定扣除 `12:00`–`13:00` 午休 60 分鐘之 `att_daily_record` 即時派生。
     - [x] 每日跨日日結排程 (`DailySettlementJob`) 與月結關帳鎖定 (`MonthlyCloseService` + `PendingRequestBlockingChecker` SPI，檢查未決 `PENDING` 單據阻擋關帳 `2010`、鎖定區間拒絕異動 `2005` 與解鎖重開)。
     - [x] 前端 `/portal` 員工自助打卡與 7 欄式月曆檢視 (`PortalHomeView.vue`)、`/admin/attendance/calendar` 多地區行事曆與打卡規則管理 (`CalendarManageView.vue`)、`/admin/attendance/monthly-close` 月結關帳與日結批次管理 (`MonthlyCloseView.vue`)，且全系統地區、時區、角色與權限標籤 100% 納入三語字典。
+  - [x] **Phase 3a.5 品質閘門、ArchUnit 架構邊界與 DB 層防竄改加固**：
+    - [x] **`att_punch_log` 雙層防竄改（JPA + PostgreSQL Trigger）**：於 `db/migration/postgresql/V3__init_attendance_core_schema.sql` 實作 `fn_prevent_att_punch_log_mutation()` 與 `trg_att_punch_log_immutable`（`BEFORE UPDATE OR DELETE ON att_punch_log` 強制拋錯），並於 `PunchLog.java` 加上 `@Immutable` 與 `@PreUpdate` / `@PreRemove` 攔截；新增 `PunchLogImmutabilityTests.java` 與 `application-pgtest.yml` 雙引擎驗證。
+    - [x] **ArchUnit 模組邊界測試 (`ModularArchitectureTest.java`)**：強制檢驗 5 條 ADR-0001 架構鐵律（禁止 Controller 直接存取 Repository、`common` 不得依賴業務模組、`iam` 不得反向依賴上層業務模組、`AttendanceRecordCalculator` 核心計算隔離、頂層業務模組間無循環依賴），防止後續階段子代理跨模組違規引用。
+    - [x] **GitHub Actions CI (`.github/workflows/ci.yml`) 與前端抓錯 ESLint (`frontend/eslint.config.js`)**：CI 自動啟動 `services: postgres:16-alpine` 執行 H2 全量測試與 `-Dspring.profiles.active=pgtest` 真實 PostgreSQL 16 Flyway + Append-Only Trigger 驗證；前端導入 ESLint 9 flat config（僅啟用抓錯規則、關閉排版噪音），落實 `./mvnw.cmd test` 與 `npm run lint && npm run build` 雙重驗收門檻。
 
 ---
 
@@ -35,10 +39,10 @@
 
 | 工具 | 目前狀態 | 建議動作 / 安裝指令 |
 | :--- | :--- | :--- |
-| **Node.js** | ✅ 已安裝 (`v24.14.1`) | `frontend/` 依賴已安裝，`npx vue-tsc -b` 與 `npm run build` 驗證通過 |
+| **Node.js** | ✅ 已安裝 (`v24.14.1`) | `frontend/` 依賴已安裝，`npm run lint`（ESLint 9 零警告）與 `npm run build`（`vue-tsc -b && vite build`）驗證通過 |
 | **Java JDK 21** | ✅ 已安裝 (`Temurin 21.0.13 LTS`) | 路徑：`C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` |
-| **Maven Wrapper** | ✅ 已內建 (`mvnw` / `mvnw.cmd`) | `cd backend && ./mvnw.cmd test` 通過 17 項整合測試（IAM 13 項 + Attendance 4 大端到端場景） |
-| **PostgreSQL 16** | ⏳ 選配 / Phase 3b+ 整合測試目標 | 本地開發預設支援 H2 與 PostgreSQL 16 雙語法 Migration |
+| **Maven Wrapper** | ✅ 已內建 (`mvnw` / `mvnw.cmd`) | `cd backend && ./mvnw.cmd test` 通過 24 項測試（IAM 7 項 + Attendance 9 項 + Immutability 2 項 + ArchUnit 5 項 + Context 1 項） |
+| **PostgreSQL 16** | ✅ CI 內建 (`postgres:16-alpine`) | 本機預設 H2 快速測試；GitHub Actions CI 透過 `-Dspring.profiles.active=pgtest` 跑真實 PostgreSQL 16 Flyway 與 Trigger 驗證 |
 
 ---
 

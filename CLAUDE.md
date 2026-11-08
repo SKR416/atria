@@ -28,4 +28,6 @@ Atria 是結合差勤（Kintai）與動態表單簽核（Workflow）的企業級
 ## 3. 核心程式碼慣例 (Core Conventions)
 - **統一響應與例外**：Controller 一律回傳 `ApiResponse<T>` / `PageResult<T>`；業務邏輯錯誤拋出 `BusinessException(ErrorCode)`，嚴禁直接硬編碼錯誤訊息字串。
 - **三語同步更新**：每當新增 `ErrorCode`，必須同步更新 `messages_zh_TW.properties`、`messages_en_US.properties`、`messages_ja_JP.properties` 與預設 `messages.properties`。
+- **測試真實性鐵律**：測試失敗時必須先判斷是業務程式碼錯誤或測試案例錯誤；**嚴禁為了讓測試通過而擅自弱化斷言或偷改測試**，若確需修改測試必須明確說明業務理由。完成階段前必須通過後端 `./mvnw.cmd test` 與前端 `npm run lint && npm run build`。
+- **前端可測試性標記**：新增的關鍵互動 UI 元素（如主要按鈕、表單輸入、對話框、狀態徽章）需加上語義化的 `data-testid` 屬性，便於自動化驗收。
 - **階段收尾與推送門檻**：每完成一個垂直切片或獨立階段、或準備執行 `git push` 推進階段進度前，**必須先按需讀取並執行 `docs/README_SYNC_CHECKLIST.md`**，將三語 README（`README.md`、`README.zh-TW.md`、`README.ja.md`）、`docs/ROADMAP.md`、`docs/NEXT_STEPS.md`、`docs/ARCHITECTURE.md` 與相關 ADR 完整對齊當前實作進度；並執行 `graphify update .` 同步知識圖譜，於 commit / push 後提醒使用者執行 `/clear`。

@@ -20,7 +20,7 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
 
 ### 1. Split Punch Data into an Immutable Log and a Derived Daily Record
 
-- **`att_punch_log`** (append-only): one row per punch event — `user_id`, `raw_punch_time` (UTC, second precision), `client_ip`, `source` (`WEB` | `BOT` | `CORRECTION`), `bot_client_id`. Rows are never updated or deleted.
+- **`att_punch_log`** (append-only): one row per punch event — `user_id`, `raw_punch_time` (UTC, second precision), `client_ip`, `source` (`WEB` | `BOT` | `CORRECTION`), `bot_client_id`. Rows are never updated or deleted, enforced at both the ORM layer (`@Immutable`, `@PreUpdate`, `@PreRemove`) and the PostgreSQL database layer (`BEFORE UPDATE OR DELETE` trigger `trg_att_punch_log_immutable`).
 - **`att_daily_record`** (derived): one row per user per logical work date — `work_date` (in the department's timezone, honoring `day_cutoff_hour`), `effective_clock_in`, `effective_clock_out`, `worked_minutes`, `status` (`NORMAL` | `LATE` | `EARLY_LEAVE` | `MISSING_PUNCH` | `ON_LEAVE` | `ABSENT`), `version` (`@Version`).
 - An approved `PUNCH_CORRECTION` inserts a `CORRECTION`-sourced log row referencing the `att_request`, then recomputes the daily record. Original raw logs remain untouched for labor audits.
 - Replaces the single `att_punch_record` table named in ADR-0003.

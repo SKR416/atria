@@ -4,7 +4,7 @@
 
 > **現在の開発ステータス：** `Phase 3a — 勤怠コア・マルチリージョンカレンダー・従業員ポータル（完了, v0.4.0-attendance-core）`  
 > **次フェーズ：** `Phase 3b — 休暇台帳・法定残業エンジン・承認イベント契約（v0.4.5-leave-overtime）`  
-> Phase 0〜3a の実装および検証（バックエンド統合テスト17件＋フロントエンド TypeScript / Vite ビルド）が完了しています。全体計画と引き継ぎ事項は [docs/ROADMAP.md](./docs/ROADMAP.md) および [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) を参照してください。
+> Phase 0〜3a の実装および検証（バックエンドテスト24件［ArchUnit・DB改ざん防止テスト含む］＋フロントエンド ESLint / TypeScript / Vite ビルド）が完了しています。全体計画と引き継ぎ事項は [docs/ROADMAP.md](./docs/ROADMAP.md) および [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) を参照してください。
 
 Atria は、勤怠管理と申請・承認（ワークフロー）を一つにまとめたエンタープライズ向けプラットフォームです。従業員の出退勤打刻や休暇・打刻修正・残業の申請から、上長・HR による多段階承認、勤怠記録および休暇残高への自動反映までを一貫して扱います。Spring Boot 3.3 と Vue 3.5 によるモジュラーモノリス構成で、RBAC、部門サブツリーに基づくデータスコープ制御（`@DataScope`）、動的フォーム、3言語（繁体字中国語・英語・日本語）対応を備えています。
 
@@ -48,8 +48,9 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
 - **Phase 3a — 勤怠コア・マルチリージョンカレンダー・従業員ポータル (`v0.4.0-attendance-core`)：**
   - Flyway `V3__init_attendance_core_schema.sql`（PostgreSQL 16 & H2 対応）：`iam_department.calendar_code`、`att_work_calendar`（`WORKDAY`, `MAKEUP_WORKDAY`, `REST_DAY`, `STATUTORY_REST_DAY`, `NATIONAL_HOLIDAY`）、`att_punch_rule`、追記専用 `att_punch_log`、日次集計 `att_daily_record`（`@Version` 楽観的ロック付）、月次締め `att_monthly_close`。
   - **日台マルチリージョン勤務カレンダー＆年間テンプレート生成 (`WorkCalendarService`, `StatutoryHolidayGenerator`)：** 日本（`JP` 内閣府国民の祝日・ハッピーマンデー・春分/秋分天文計算・振替休日・国民の休日）および台湾（`TW` 法定休日・旧暦祝日・振替休日）の年間365/366日一括生成、日別の振替出勤日設定、地域別打刻規則管理。
-  - **不変打刻台帳＆日次勤怠リアルタイム導出 (`PunchService`)：** Web自己打刻 (`/api/v1/attendance/punch`) および `HMAC-SHA256` リプレイ防止検証付き Bot 代理打刻 (`/api/v1/attendance/bot/punch`)、60秒重複打刻防止 (`ErrorCode 2001`)、午前 `04:00` 論理日付切替、丸め・猶予計算、昼休憩1時間（`12:00`–`13:00`）自動控除。
+  - **不変打刻台帳＆日次勤怠リアルタイム導出 (`PunchService`)：** Web自己打刻 (`/api/v1/attendance/punch`) および `HMAC-SHA256` リプレイ防止検証付き Bot 代理打刻 (`/api/v1/attendance/bot/punch`)、`att_punch_log` の2層改ざん防止保護（PostgreSQL `BEFORE UPDATE OR DELETE` トリガー `trg_att_punch_log_immutable` ＋ JPA `@Immutable` / `@PreUpdate` / `@PreRemove`）、60秒重複打刻防止 (`ErrorCode 2001`)、午前 `04:00` 論理日付切替、丸め・猶予計算、昼休憩1時間（`12:00`–`13:00`）自動控除。
   - **日次締めバッチ＆月次締めロック (`DailySettlementJob`, `MonthlyCloseService`)：** 日付切替時刻後の `MISSING_PUNCH` / `ABSENT` 自動確定、および `PendingRequestBlockingChecker` SPI による未承認 `PENDING` 申請ブロックチェック (`ErrorCode 2010`)、締め済み期間の変更防止 (`ErrorCode 2005`)、ロック解除機能。
+  - **アーキテクチャ境界テスト＆CI検証 (`ModularArchitectureTest`, `.github/workflows/ci.yml`)：** ADR-0001 モジュラーモノリス境界を強制する ArchUnit 5ルール、PostgreSQL 16 + H2 デュアルエンジン CI パイプライン（`pgtest` プロファイル）、およびバグ検出特化型 ESLint 9 設定。
   - **従業員セルフサービスポータル＆HR勤怠管理画面：**
     - **従業員ポータル (`PortalHomeView.vue`)：** 部門タイムゾーンリアルタイム時計、ワンクリック打刻＆生打刻履歴、月次 KPI、対話型7列月間カレンダー＆日次詳細モーダル。
     - **勤務カレンダー・打刻規則管理 (`CalendarManageView.vue`)：** `TW`/`JP` 月間カレンダーエディタ、年間カレンダー一括生成モーダル、日別編集、打刻丸め・日付変更時刻設定。
@@ -74,6 +75,7 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
 
 ```text
 atria/
+├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
 │   ├── ROADMAP.md                # マイルストーン計画および Git タグスケジュール (Phase 0〜Phase 6)
 │   ├── ARCHITECTURE.md           # モジュラーモノリス構造およびデータベーススキーマ概要
@@ -90,7 +92,7 @@ atria/
 │       ├── main/resources/
 │       │   ├── db/migration/     # Flyway V1–V3 SQL マイグレーション (postgresql/ & h2/)
 │       │   └── i18n/             # 3言語メッセージバンドル (zh_TW, en_US, ja_JP)
-│       └── test/                 # Phase 1 IAM & Phase 3a Attendance 統合テスト (17件)
+│       └── test/                 # IAM・Attendance・改ざん防止・ArchUnit テスト (24件)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
     └── src/
         ├── api/                  # Axios クライアント (JWT 自動更新 & 1003 ガード) + IAM / Attendance API

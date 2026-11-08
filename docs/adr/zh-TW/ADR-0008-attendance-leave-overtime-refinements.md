@@ -22,7 +22,7 @@
 
 ### 1. 將打卡資料拆分為不可變日誌與衍生每日出勤紀錄
 
-- **`att_punch_log`**（僅可新增）：每次打卡事件一筆資料列 —— `user_id`、`raw_punch_time`（UTC，秒精度）、`client_ip`、`source`（`WEB` | `BOT` | `CORRECTION`）、`bot_client_id`。資料列絕不更新或刪除。
+- **`att_punch_log`**（僅可新增）：每次打卡事件一筆資料列 —— `user_id`、`raw_punch_time`（UTC，秒精度）、`client_ip`、`source`（`WEB` | `BOT` | `CORRECTION`）、`bot_client_id`。資料列絕不更新或刪除，並於 ORM 層（`@Immutable`、`@PreUpdate`、`@PreRemove`）與 PostgreSQL 資料庫層（`BEFORE UPDATE OR DELETE` 觸發器 `trg_att_punch_log_immutable`）實作雙重強制阻擋。
 - **`att_daily_record`**（衍生）：每位使用者每個邏輯工作日一筆資料列 —— `work_date`（依據該部門時區，並遵循 `day_cutoff_hour` 換日時點）、`effective_clock_in`、`effective_clock_out`、`worked_minutes`、`status`（`NORMAL` | `LATE` | `EARLY_LEAVE` | `MISSING_PUNCH` | `ON_LEAVE` | `ABSENT`）、`version`（`@Version`）。
 - 經核准的 `PUNCH_CORRECTION`（補卡申請）會新增一筆來源為 `CORRECTION` 且關聯至該筆 `att_request` 的打卡日誌資料列，接著重新計算每日出勤紀錄。原始打卡日誌保持原封不動，以供勞動法規稽核之需。
 - 取代 ADR-0003 中所提及的單一 `att_punch_record` 資料表。

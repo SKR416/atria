@@ -4,7 +4,7 @@
 
 > **Current Status:** `Phase 3a — Attendance Core, Multi-Region Calendar & Employee Portal (Completed, v0.4.0-attendance-core)`  
 > **Next Milestone:** `Phase 3b — Leave Ledger, Statutory Overtime & Approval Event Contract (v0.4.5-leave-overtime)`  
-> Phases 0–3a are fully implemented and verified (17 backend integration tests + frontend TypeScript & Vite build). See [docs/ROADMAP.md](./docs/ROADMAP.md) and [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) for the full milestone schedule.
+> Phases 0–3a are fully implemented and verified (24 backend tests including ArchUnit & DB immutability tests + frontend ESLint, TypeScript & Vite build). See [docs/ROADMAP.md](./docs/ROADMAP.md) and [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) for the full milestone schedule.
 
 Atria is an enterprise platform that brings attendance tracking and approval workflows together. Employees clock in and submit leave, punch-correction, or overtime requests, managers and HR approve them through a multi-level workflow, and approved requests are written back to attendance records automatically. Built as a Spring Boot 3.3 + Vue 3.5 modular monolith with RBAC, department-subtree data scope, dynamic forms, and trilingual i18n (`zh-TW` / `en-US` / `ja-JP`).
 
@@ -46,8 +46,9 @@ Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents wh
 - **Phase 3a — Attendance Core, Multi-Region Calendar & Employee Portal (`v0.4.0-attendance-core`):**
   - Flyway `V3__init_attendance_core_schema.sql` (PostgreSQL 16 & H2 dialects): `iam_department.calendar_code`, `att_work_calendar` (`WORKDAY`, `MAKEUP_WORKDAY`, `REST_DAY`, `STATUTORY_REST_DAY`, `NATIONAL_HOLIDAY`), `att_punch_rule`, append-only `att_punch_log`, derived `att_daily_record` (with `@Version` optimistic locking), and `att_monthly_close`.
   - **Multi-Region Work Calendar & Statutory Year Generator (`WorkCalendarService`, `StatutoryHolidayGenerator`):** Built-in Taiwan (`TW` lunar & solar statutory holidays + observed weekend compensation) and Japan (`JP` Cabinet Office holidays, Happy Monday, astronomical vernal/autumnal equinoxes, substitute holidays *Furikae Kyūjitsu*, and Citizens' Holidays *Kokumin no Kyūjitsu*) full-year generators, with individual day overrides and regional punch rules for HR.
-  - **Immutable Punch Ledger & Daily Derivation (`PunchService`):** Web self-service clock-in/out (`/api/v1/attendance/punch`) and `HMAC-SHA256` anti-replay Bot proxy punch (`/api/v1/attendance/bot/punch`), 60-second duplicate punch guard (`ErrorCode 2001`), logical day attribution with `04:00 AM` cross-midnight cutoff, grace/rounding calculation, and automatic 1-hour lunch break (`12:00`–`13:00`) deduction.
+  - **Immutable Punch Ledger & Daily Derivation (`PunchService`):** Web self-service clock-in/out (`/api/v1/attendance/punch`) and `HMAC-SHA256` anti-replay Bot proxy punch (`/api/v1/attendance/bot/punch`), dual-layer append-only protection on `att_punch_log` (PostgreSQL `BEFORE UPDATE OR DELETE` trigger `trg_att_punch_log_immutable` + JPA `@Immutable` / `@PreUpdate` / `@PreRemove`), 60-second duplicate punch guard (`ErrorCode 2001`), logical day attribution with `04:00 AM` cross-midnight cutoff, grace/rounding calculation, and automatic 1-hour lunch break (`12:00`–`13:00`) deduction.
   - **Daily Settlement & Monthly Closing (`DailySettlementJob`, `MonthlyCloseService`):** Scheduled & manual post-cutoff settlement marking `MISSING_PUNCH` / `ABSENT` on past workdays, plus monthly payroll lock (`att_monthly_close`) with `PendingRequestBlockingChecker` SPI (`ErrorCode 2010`), closed-period mutation guard (`ErrorCode 2005`), and HR reopen support.
+  - **Architectural Fitness & CI Verification (`ModularArchitectureTest`, `.github/workflows/ci.yml`):** 5 ArchUnit rules enforcing ADR-0001 modular monolith boundaries, PostgreSQL 16 + H2 dual-engine CI pipeline (`pgtest` profile), and bug-catching ESLint 9 flat config.
   - **Frontend ESS Portal & HR Attendance Console:**
     - **Employee Portal (`PortalHomeView.vue`):** Live regional clock card, one-click punch with append-only raw log feed, monthly KPI strip, and interactive 7-column monthly attendance & holiday calendar with day-detail modal.
     - **HR Calendar & Punch Rules (`CalendarManageView.vue`):** Visual `TW`/`JP` monthly calendar editor, full-year template generator modal, day override dialog, and regional punch rule configuration.
@@ -72,6 +73,7 @@ Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents wh
 
 ```text
 atria/
+├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
 │   ├── ROADMAP.md                # Milestone plan and Git tag schedule (Phase 0 to Phase 6)
 │   ├── ARCHITECTURE.md           # Modular monolith layout and database schema overview
@@ -88,7 +90,7 @@ atria/
 │       ├── main/resources/
 │       │   ├── db/migration/     # Flyway V1–V3 SQL migrations (postgresql/ & h2/)
 │       │   └── i18n/             # Trilingual message bundles (zh_TW, en_US, ja_JP)
-│       └── test/                 # Phase 1 IAM & Phase 3a Attendance integration tests (17 tests)
+│       └── test/                 # IAM, Attendance, Immutability & ArchUnit tests (24 tests)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
     └── src/
         ├── api/                  # Axios HTTP client (JWT refresh & 1003 guard) + IAM & Attendance APIs

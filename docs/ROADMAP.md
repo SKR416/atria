@@ -52,6 +52,7 @@ This document tracks the vertical-slice implementation plan for **Atria** (*Atte
 - [x] Daily Settlement Job & Monthly Closing Lock (`att_monthly_close`): finalize daily attendance statuses per timezone after cutoff; block monthly close while any `PENDING` request touches that month
 - [x] Build `/portal` Employee Self-Service dashboard (live clock-in/out card + interactive 7-column monthly attendance & calendar view)
 - [x] Build `/admin` HR Work Calendar (with `TW`/`JP` year generator) and Monthly Closing configuration UI
+- [x] Enforce dual-layer `att_punch_log` immutability (PostgreSQL `BEFORE UPDATE OR DELETE` trigger `trg_att_punch_log_immutable` + JPA `@Immutable`), ArchUnit modular boundary suite (`ModularArchitectureTest`), frontend bug-catching ESLint, and GitHub Actions CI (`.github/workflows/ci.yml` with PostgreSQL 16 service)
 
 ### Phase 3b: Leave Ledger, Statutory Overtime & Approval Event Contract (`v0.4.5-leave-overtime`)
 - [ ] Flyway migration `V4__init_leave_overtime_schema.sql`: `att_leave_type` (`min_unit_minutes`), `att_leave_grant_rule`, `att_leave_balance`, `att_overtime_rate_rule`, `att_overtime_cap_rule`, `att_comp_leave_grant`, `att_request`

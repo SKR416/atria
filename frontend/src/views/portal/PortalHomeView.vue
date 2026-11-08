@@ -37,7 +37,6 @@ import {
   CalendarDays,
   FileText,
   Activity,
-  Layers,
   Sparkles
 } from 'lucide-vue-next'
 
