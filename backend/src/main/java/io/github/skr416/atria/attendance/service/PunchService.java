@@ -55,6 +55,7 @@ public class PunchService {
     private final PunchLogRepository punchLogRepository;
     private final DailyAttendanceRecordRepository dailyAttendanceRecordRepository;
     private final MonthlyCloseRepository monthlyCloseRepository;
+    private final io.github.skr416.atria.attendance.repository.AttendanceRequestRepository attendanceRequestRepository;
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final WorkScheduleResolver workScheduleResolver;
@@ -200,8 +201,8 @@ public class PunchService {
                 .findByUserIdAndWorkDate(userId, logicalWorkDate)
                 .orElse(null);
 
-        List<PunchLog> logs = punchLogRepository
-                .findByUserIdAndWorkDateOrderByRawPunchTimeAsc(userId, logicalWorkDate);
+        List<PunchLog> logs = filterActivePunchLogs(punchLogRepository
+                .findByUserIdAndWorkDateOrderByRawPunchTimeAsc(userId, logicalWorkDate));
 
         String yearMonth = String.format("%04d-%02d", logicalWorkDate.getYear(), logicalWorkDate.getMonthValue());
         boolean isClosed = monthlyCloseRepository.existsByCalendarCodeAndYearMonthAndStatus(
@@ -292,8 +293,8 @@ public class PunchService {
 
         List<DailyAttendanceRecord> dailyRecords = dailyAttendanceRecordRepository
                 .findByUserIdAndWorkDateBetweenOrderByWorkDateAsc(userId, startDate, endDate);
-        List<PunchLog> punchLogs = punchLogRepository
-                .findByUserIdAndWorkDateBetweenOrderByRawPunchTimeAsc(userId, startDate, endDate);
+        List<PunchLog> punchLogs = filterActivePunchLogs(punchLogRepository
+                .findByUserIdAndWorkDateBetweenOrderByRawPunchTimeAsc(userId, startDate, endDate));
 
         int totalWorkedMinutes = 0;
         int normalDays = 0;
@@ -332,5 +333,24 @@ public class PunchService {
                 .dailyRecords(dailyRecords.stream().map(DailyAttendanceRecordResponse::from).toList())
                 .punchLogs(punchLogs.stream().map(PunchLogResponse::from).toList())
                 .build();
+    }
+
+    private List<PunchLog> filterActivePunchLogs(List<PunchLog> rawLogs) {
+        if (rawLogs == null || rawLogs.isEmpty()) {
+            return List.of();
+        }
+        List<PunchLog> result = new ArrayList<>(rawLogs.size());
+        for (PunchLog logItem : rawLogs) {
+            if (logItem.getSource() == PunchSource.CORRECTION && logItem.getCorrectionRequestId() != null) {
+                boolean active = attendanceRequestRepository.findById(logItem.getCorrectionRequestId())
+                        .map(r -> r.getStatus() == io.github.skr416.atria.attendance.model.AttendanceRequestStatus.APPROVED)
+                        .orElse(false);
+                if (!active) {
+                    continue;
+                }
+            }
+            result.add(logItem);
+        }
+        return result;
     }
 }

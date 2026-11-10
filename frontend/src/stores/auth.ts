@@ -11,7 +11,12 @@ const ADMIN_PERMISSIONS = [
   'iam:dept:write',
   'iam:role:read',
   'iam:role:write',
-  'iam:audit:read'
+  'iam:audit:read',
+  'att:calendar:read',
+  'att:calendar:write',
+  'att:monthly-close:manage',
+  'att:rule:read',
+  'att:rule:write'
 ]
 
 export const useAuthStore = defineStore('auth', () => {

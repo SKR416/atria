@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: '統合勤怠管理・電子稟議プラットフォーム',
-    version: 'v0.4.0'
+    version: 'v0.4.5'
   },
   common: {
     search: '検索',
@@ -65,7 +65,10 @@ export default {
     'att:record:write': '勤怠実績修正',
     'att:calendar:read': '勤務カレンダー・規則照会',
     'att:calendar:write': '勤務カレンダー・規則管理',
-    'att:monthly-close:manage': '月次締め・日次集計管理'
+    'att:monthly-close:manage': '月次締め・日次集計管理',
+    'att:request:self': '本人勤怠申請（休暇・残業・打刻修正）',
+    'att:rule:read': '休暇・残業規則照会',
+    'att:rule:write': '休暇・残業規則管理'
   },
   halls: {
     public: '公開お知らせホール',
@@ -86,6 +89,7 @@ export default {
     auditLogs: '監査ログ照会',
     attendanceGroup: '勤怠・カレンダー管理',
     workCalendar: '地域別勤務カレンダー',
+    leaveOvertimeRules: '休暇付与・残業規則管理',
     monthlyClose: '月次締め管理'
   },
   auth: {
@@ -329,6 +333,127 @@ export default {
       reopenedAt: '解除日時',
       blockingAlertTitle: '月次締めブロック：未承認 (PENDING) の申請が残っています',
       noBlockingRequests: '該当月に未承認の申請はありません。月次締めを実行できます'
+    },
+    requestTypes: {
+      LEAVE: '休暇申請',
+      OVERTIME: '残業・休日出勤申請',
+      PUNCH_CORRECTION: '打刻修正申請'
+    },
+    requestStatuses: {
+      PENDING: '承認待ち (PENDING)',
+      APPROVED: '承認済 (APPROVED)',
+      REJECTED: '却下 (REJECTED)',
+      CANCELLED: '取下げ (CANCELLED)',
+      REVOKED: '承認取消 (REVOKED)'
+    },
+    overtimeCompTypes: {
+      PAY: '残業手当支給 (PAY)',
+      COMP_LEAVE: '代休・振替休日付与 (COMP_LEAVE)'
+    },
+    compLeaveModes: {
+      HOURS_1_TO_1: '1:1 時間等倍換算',
+      RATE_MULTIPLIED: '割増率換算（CEILING 端数切上げ）'
+    },
+    capActions: {
+      WARN: '警告アラート (WARN)',
+      BLOCK: '申請ブロック (BLOCK)'
+    },
+    grantBases: {
+      ANNIVERSARY: '入社起算日基準 (ANNIVERSARY)',
+      CALENDAR_YEAR: '暦年基準 (CALENDAR_YEAR)'
+    },
+    requests: {
+      sectionTitle: '勤怠申請・休暇残高センター',
+      newLeaveBtn: '休暇を申請',
+      newOvertimeBtn: '残業を申請',
+      newCorrectionBtn: '打刻修正を申請',
+      balanceCardsTitle: '個人休暇残高台帳（FIFO 有効期限順消化）',
+      availableLabel: '利用可能残高',
+      usedLabel: '消化済',
+      pendingLabel: '承認待ち凍結',
+      totalLabel: '付与合計',
+      validUntilLabel: '有効期限 {date}',
+      expiringCompAlertTitle: '90日以内に期限切れとなる代休のお知らせ',
+      expiringCompItem: '残業日 {workDate}：残り {mins} 分（期限 {expiresAt}、あと {days} 日）',
+      jpObligationTitle: '労基法39条7項 年次有給休暇 年5日取得義務の進捗状況',
+      jpObligationFulfilled: '法定の年5日（2400分）取得義務を達成済みです',
+      jpObligationRemaining: '年5日取得義務まであと {mins} 分の取得が必要です（期限：{deadline}）',
+      myRequestsTitle: '個人の勤怠申請履歴・承認ステータス',
+      requestType: '申請種別',
+      leaveType: '休暇種別',
+      dateRange: '対象日',
+      timeRange: '開始・終了日時',
+      requestedMinutes: '申請分数',
+      weightedMinutes: '割増換算分数',
+      compType: '補償方式',
+      reason: '申請理由',
+      attachmentPath: '添付証憑パス・番号',
+      warningMessages: '36協定・上限アラート',
+      cancelBtn: '取下げ',
+      stubApproveBtn: '模擬承認',
+      stubRejectBtn: '模擬却下',
+      stubRevokeBtn: '模擬取消',
+      revokeReasonPrompt: '承認取消の理由を入力してください',
+      submitSuccess: '勤怠申請を提出しました！',
+      actionSuccess: '申請ステータスを更新しました！',
+      workDate: '対象勤務日',
+      startTime: '開始日時',
+      endTime: '終了日時',
+      correctedPunchTime: '修正打刻日時'
+    },
+    leaveOvertime: {
+      title: '休暇残高・勤続年休付与・残業規則管理',
+      subtitle: '休暇種別、日台法定年休付与テーブル、残業割増率・36協定上限規制および残高付与の管理',
+      tabLeaveTypes: '休暇種別・最小単位',
+      tabGrantRules: '勤続年数別年休付与規則',
+      tabOvertimeRates: '残業割増率テーブル',
+      tabOvertimeCaps: '36協定・残業上限規則',
+      tabBalanceOps: '年休一括付与・手動付与',
+      addLeaveType: '休暇種別追加',
+      editLeaveType: '休暇種別編集',
+      leaveCode: '休暇コード',
+      minUnitMinutes: '最小取得単位 (分)',
+      paid: '有給区分',
+      balanceTracked: '残高台帳管理対象',
+      attachmentRequired: '証明書類必須',
+      addGrantRule: '年休付与ランク追加',
+      editGrantRule: '年休付与ランク編集',
+      grantBasis: '付与基準',
+      minTenureMonths: '最小勤続月数 (ヶ月)',
+      maxTenureMonths: '最大勤続月数 (空欄=上限なし)',
+      grantDays: '付与日数',
+      grantMinutes: '付与分数',
+      validMonths: '有効月数',
+      addRateRule: '残業割増率バンド追加',
+      editRateRule: '残業割増率バンド編集',
+      fromMinute: '開始分数 (以上)',
+      toMinute: '終了分数',
+      multiplier: '法定割増率',
+      nightPremium: '深夜割増参照枠',
+      monthlyCumulative: '月間累計参照枠',
+      defaultCompMode: '標準代休換算モード',
+      addCapRule: '残業上限規則追加',
+      editCapRule: '残業上限規則編集',
+      ruleCode: '規則コード',
+      periodMonths: '集計期間 (ヶ月)',
+      maxMinutes: '上限分数',
+      enforcementAction: '超過時アクション',
+      runAnnualGrantTitle: '入社起算日 (ANNIVERSARY) 年次有給休暇の自動一括付与',
+      runAnnualGrantDesc: '全有効社員の入社日 (hire_date) と所属カレンダー (TW/JP) に基づき年休バケットを自動付与します（日本10日以上付与時は年5日取得義務を設定）。',
+      asOfDateLabel: '基準日',
+      runAnnualGrantBtn: '年休一括付与を今すぐ実行',
+      manualGrantTitle: '人事手動による休暇残高バケット付与',
+      targetUserId: '対象社員ID',
+      grantMinutesLabel: '付与分数 (480分=1日)',
+      validFromLabel: '有効開始日',
+      validUntilLabel: '有効終了日',
+      manualGrantBtn: '残高を付与する',
+      manualGrantDesc: '対象社員のFIFO休暇残高台帳に新しい休暇バケットを直接付与します。',
+      monthsUnit: 'ヶ月',
+      daysUnit: '日',
+      grantedCountLabel: '新規付与件数',
+      skippedGrantedCountLabel: '付与済スキップ件数',
+      skippedMissingHireDateLabel: '入社日未設定スキップ対象：'
     }
   }
 }

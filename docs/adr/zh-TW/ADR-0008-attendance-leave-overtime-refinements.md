@@ -36,17 +36,22 @@
   - **JP 模板：** 週六 = `REST_DAY`，週日 = `STATUTORY_REST_DAY`；依日本內閣府公佈規則演算法推算之節日（固定日期、Happy Monday 制度、春分／秋分公式、振替休日、国民の休日）。
 - 模板完全由 Java 程式內建產生（無外部 API 依賴），並針對官方公佈的放假清單撰寫單元測試以確保正確性。
 
-### 3. 每日結算排程
+### 3. 每日結算排程與核准單據之每日出勤重算整合
 
 - 各時區於 `day_cutoff_hour`（預設為 `04:00`）後執行排程工作，以終結並結算前一個邏輯工作日，產出 `MISSING_PUNCH` / `ABSENT` 等狀態。
-- 核准的請假或補卡申請僅會觸發重新計算受影響的日期。
+- 經核准的請假、加班或補卡申請僅會觸發重新計算受影響的日期（呼叫 `AttendanceRecordCalculator.recomputeDailyRecord(userId, workDate, settledPass)`）：
+  - **已核准請假 (`LEAVE`)：** 自動彙總當日已核准的 `leaveMinutes`。若請假區間涵蓋排班起點（如 `09:00`–`13:00`），遲到起算基準自動順延至請假結束時間（`13:00`）；若涵蓋排班終點（如 `14:00`–`18:00`），早退起算基準提前至請假開始時間（`14:00`）。當 `workedMinutes + leaveMinutes >= 480` 且無遲到早退時，狀態判定為 `NORMAL`（當 `leaveMinutes >= 480` 全日請假時判定為 `ON_LEAVE`）。
+  - **已核准加班 (`OVERTIME`)：** 自動彙總當日已核准加班時數寫入 `att_daily_record.overtime_minutes`。**Phase 3b 直接採用核准時數**；核准時數與實際打卡時間取交集的邏輯暫緩實作。
+  - **已核准補卡 (`PUNCH_CORRECTION`)：** 新增一筆 `source = CORRECTION` 的不可變紀錄至 `att_punch_log`，透過 V3 既有的 `correction_request_id` 欄位關聯申請單（V4 補上指向 `att_request` 的外鍵），隨後直接呼叫 `recomputeDailyRecord` 重算。
 
-### 4. 假別、最小單位與依年資給予之特休
+### 4. 假別、最小單位、依年資給予之特休與 FIFO 額度帳本
 
 - **`att_leave_type`**：三語名稱（`JSONB`）、`min_unit_minutes`（例如 30、60、240 = 半天；依各假別可設定）、支薪旗標（paid flag）、餘額扣抵追蹤旗標（balance-tracked flag）。
 - **請假時數計算：** 淨請假分鐘數 = 請假區間 ∩ 行事曆工作時間，扣除固定的 12:00–13:00 午休時間，並**無條件進位**至 `min_unit_minutes` 的整數倍。
+- **先進先出扣抵（FIFO）與精確帳本異動明細（`att_leave_balance_tx`）：** 當員工同時擁有多筆有效 `att_leave_balance` 額度桶（例如：去年度遞延特休與今年度特休、或不同到期日之加班補休），系統預設依 **`valid_until ASC`（先進先出，最早到期者優先扣抵）** 自動挑選額度桶。每次送單預扣（`PENDING`）、核准實扣（`APPROVED`）或駁回／撤銷退還（`REJECTED` / `REVOKED`），均逐筆記錄於 `att_leave_balance_tx`（`request_id`、`balance_id`、`tx_type`、`minutes`），確保跨多個效期桶子時仍能 **100% 精準原路退回**原帳本。
+- **補休額度單一可信來源：** 每筆 `att_comp_leave_grant` 核發時同步建立一筆 `att_leave_balance` 額度桶（`source_comp_grant_id` 指向 grant）。補休用量**只**記錄於 `att_leave_balance` / `att_leave_balance_tx`，grant 資料列不儲存已休分鐘數。
 - **`att_leave_grant_rule`**（規則表，依 `calendar_code` 預載種子資料）：
-  - **TW（第 38 條）：** 滿 6 個月至 1 年：3 天；滿 1 至 2 年：7 天；滿 2 至 3 年：10 天；滿 3 至 5 年：14 天；滿 5 至 10 年：15 天；滿 10 年以上：每滿 1 年加給 1 天，上限為 30 天。給假依據基準可設定：週年制或曆年制。年度終結未休日數：依勞資協商折發工資或遞延一年。
+  - **TW（第 38 條）：** 滿 6 個月至 1 年：3 天；滿 1 至 2 年：7 天；滿 2 至 3 年：10 天；滿 3 至 5 年：14 天；滿 5 至 10 年：15 天；滿 10 年以上：每滿 1 年加給 1 天，上限為 30 天。給假基準欄位保留支援 `ANNIVERSARY`（到職週年制）與 `CALENDAR_YEAR`（曆年制），**Phase 3b 排程演算法直接實作最明確通用的到職週年制（`ANNIVERSARY`）**。年度終結未休日數：依勞資協商折發工資或遞延一年。
   - **JP（第 39 條）：** 滿 6 個月：10 天；滿 1.5 年：11 天；滿 2.5 年：12 天；滿 3.5 年：14 天；滿 4.5 年：16 天；滿 5.5 年：18 天；滿 6.5 年以上：20 天。要求前一週期出勤率 ≥ 80%；時效 2 年過期。小時特休（時間単位年休）以每年 5 天為上限。追蹤被給予 ≥ 10 天年休之員工每年強制休 5 天的法定義務（年5日取得義務）。
 - 自動給假排程工作會自動建立 `att_leave_balance` 資料列；HR 仍可手動給假或設定協商假。
 - **前置要件：** `iam_user.hire_date DATE`（見決策 11）。
@@ -54,19 +59,21 @@
 ### 5. 加班記錄、倍率規則與上限
 
 - Atria 記錄**經核准的加班分鐘數及其加權等效時數**，絕不記錄金錢金額（不儲存任何薪資資料）。計薪系統後續可取用加權時數匯出檔（Phase 5）。
-- **`att_overtime_rate_rule`**：`calendar_code`、`day_type`、`from_minute`、`to_minute`、`multiplier`、`is_night_premium`。預載模板（可由 HR 編輯）：
-  - **TW：** 平日加班前 2 小時 ×1⅓，第 3 小時起 ×1⅔；休息日出勤採 ×1⅓ / ×1⅔ 級距；例假日與國定假日出勤 ×2。
+- **`att_overtime_rate_rule`**：`calendar_code`、`day_type`、`from_minute`、`to_minute`、`multiplier`（`NUMERIC(6,4)`）、`is_night_premium`。預載模板（可由 HR 編輯）：
+  - **TW：** 採台灣企業實務標準倍率 —— 平日加班前 2 小時 **`×1.34`**（`1.3400`），第 3 小時起 **`×1.67`**（`1.6700`）；休息日出勤前 2 小時 **`×1.34`**、第 3–8 小時 **`×1.67`**、第 9–12 小時 **`×2.67`**；例假日與國定假日出勤 **`×2.00`**。
+    - *已知簡化：* 依勞基法第 39、40 條，國定假日或例假日出勤 8 小時內應加發**一日**工資（按日計，而非按分鐘），超過 8 小時部分適用加班倍率；例假日出勤僅限第 40 條情形且須給予補假。目前以按分鐘 `×2.00` 計算屬建模簡化，正式上線前須由 HR／法務確認。
   - **JP：** 法定加班 ×1.25；單月加班超過 60 小時部分 ×1.50；法定休日出勤 ×1.35；深夜（22:00–05:00）額外加給 +0.25。
+    - *Phase 3b 引擎範圍：* 計算器僅評估累計分鐘級距（`from_minute` / `to_minute`）。深夜加給（依時鐘時段判定）與單月超過 60 小時級距（依當月累計判定）僅預載種子資料供顯示，**暫不納入計算**，留待後續階段。
 - **`att_overtime_cap_rule`**：可設定的每月／跨月／年度上限，並可在送出申請時採取 `WARN` 或 `BLOCK` 處置動作。種子資料：TW 每月 46 小時（經工會或勞資會議同意得延長至每月 54 小時、每 3 個月 138 小時）；JP 36 協定（三六協定）每月 45 小時且每年 360 小時、特別條款每年 720 小時、含假日加班單月 < 100 小時、2 至 6 個月平均 ≤ 80 小時、超過 45 小時每年最多 6 次。
 - 每筆 `OVERTIME`（加班申請）可選擇補償方式：`PAY` 或 `COMP_LEAVE`。
 
-### 6. 補休轉換（可設定折算比例）
+### 6. 補休轉換（可設定折算比例與無條件進位）
 
 - 依 `calendar_code`（或各倍率規則）設定 **`comp_leave_mode`**：
   - `HOURS_1_TO_1` —— 法定基準：補休分鐘數 = 加班分鐘數。
-  - `RATE_MULTIPLIED` —— 企業激勵（業界常見作法）：補休分鐘數 = Σ(各級距分鐘數 × 級距 `multiplier`)。驗證機制強制要求實質折算比例 ≥ 1.0。
-- 每筆補休發放資料列均會儲存其來源 `att_request`、**各倍率級距之原始加班分鐘數**、給予的補休分鐘數以及 `expires_at` 到期時間。
-- **TW 到期／離職結算（第 32-1 條）：** 未休畢之補休必須依加班費率折發工資。引擎會將未休畢的比例回推轉換為各級距之*原始*加班分鐘數（而非膨脹後的補休分鐘數），並產出應發工資的加權時數紀錄。
+  - `RATE_MULTIPLIED` —— 企業激勵（業界常見作法）：補休分鐘數 = `CEILING(Σ(各級距分鐘數 × 級距 multiplier))`，統一以 `BigDecimal` 運算並依優惠員工原則對分鐘數採 **`RoundingMode.CEILING` 無條件進位至整數分鐘**。驗證機制強制要求實質折算比例 ≥ 1.0。
+- 每筆 `att_comp_leave_grant` 補休發放資料列均會儲存其來源 `att_request`、**各倍率級距之原始加班分鐘數 JSON（`band_breakdown_json`）**、給予的補休分鐘數以及 `expires_at` 到期時間；已休／剩餘分鐘數一律從其關聯的 `att_leave_balance` 額度桶讀取（見決策 4）。
+- **TW 到期／離職結算（第 32-1 條）：** 未休畢之補休必須依加班費率折發工資。引擎以未休比例（額度桶剩餘 ÷ 給予分鐘數）透過 `band_breakdown_json` 將未休畢的比例直接還原為各級距之*原始*加班分鐘數（避免二次乘除造成進位誤差），並產出應發工資的加權時數紀錄。
 - **JP：** 標準代休僅能抵銷基礎 1.0 倍的部分；無論設定何種模式，加成部分（例如 0.25）均記錄為剩餘應發加成工資，除非 HR 依據勞資協定針對單月超過 60 小時部分設定代替休暇。
 
 ### 7. 含簽核中申請的月結關帳
@@ -74,19 +81,22 @@
 - **只要有任何處於 `PENDING` 狀態的申請牽涉到該月份，月結關帳即會被阻擋**；API 會回傳阻擋關帳的申請清單供 HR 處理。系統不會進行自動駁回。
 - 排程自動關帳遵循相同規則，並在受到阻擋時主動通知 HR。
 
-### 8. 每月假別餘額彙總通知（Email）
+### 8. 每月假別餘額彙總與 Phase 3b / Phase 4 階段分工
 
-- **`LeaveBalanceDigestJob`** 於每月可設定的日期／時間執行（預設為該部門時區每月 1 日 09:00），以員工所屬的 `locale` 發送給每位員工：
-  - 各假別剩餘時數，
-  - 於可設定的時間區間內（預設 90 天）即將到期的餘額，包含補休，
-  - JP：年休 5 天取得義務的達成進度。
-- 透過 `EmailNotificationChannel` 寄送，並同步提供站內通知副本。透過寄送紀錄依 `(user_id, period)` 保證冪等性（idempotent）。Dev Profile 會將信件寫入日誌／檔案（無需 SMTP 伺服器）。
-- 主管會收到團隊摘要，列出有到期失效風險或法定義務落後風險的成員名單。
+- **Phase 3b 實作範圍：** 先行實作「**員工假別餘額 + 90 天內即將到期補休 + 日本年休 5 日義務達成進度**」之**查詢 Service 與 `/portal` 看板 API**，讓員工與 HR 於前端即可即時檢視。
+- **Phase 4 實作範圍（`LeaveBalanceDigestJob`）：** 待 Phase 4 通知基礎底座（`ntf_*` 資料表與 `EmailNotificationChannel`，見決策 10）落地後，再掛上每月 1 日 09:00 的定期寄信排程（依 `(user_id, period)` 冪等發送）。
 
-### 9. Phase 3 ↔ Phase 4 簽核契約
+### 9. Phase 3 ↔ Phase 4 簽核契約與單向依賴流向
 
-- Phase 3 定義領域事件 **`AttRequestApprovedEvent`** / **`AttRequestRejectedEvent`** / **`AttRequestRevokedEvent`**，並針對這些事件實作所有寫回邏輯（餘額凍結／扣除／釋放、每日出勤紀錄重算）。
-- Phase 3 交付**僅供測試使用的直接簽核端點**（限制僅能在 dev/test Profile 啟用），以運行動線閉環測試。Phase 4 的簽核流程引擎將發布相同的事件，直接取代測試端點（Stub）而無需修改任何差勤業務邏輯。
+- 為嚴格遵守 ArchUnit 模組無循環依賴鐵律（`ModularArchitectureTest`），**所有差勤申請領域事件統一放置於 `io.github.skr416.atria.attendance.event` 套件**：`AttRequestSubmittedEvent`、`AttRequestCancelledEvent`、`AttRequestApprovedEvent`、`AttRequestRejectedEvent`、`AttRequestRevokedEvent`。
+- **固定單向依賴流向（`workflow` ➔ `attendance`）：** `attendance` 模組完全不依賴 `workflow`，僅負責在送單時發布 `AttRequestSubmittedEvent`、申請人抽單時發布 `AttRequestCancelledEvent`（供簽核引擎關閉流程實例），並監聽 `Approved` / `Rejected` / `Revoked` 事件以執行額度凍結／實扣／原路退還（`att_leave_balance_tx`）、補打卡寫入 `att_punch_log(CORRECTION)` 以及觸發 `att_daily_record` 重算。
+- **`att_request` 狀態機**（含 `version` 樂觀鎖欄位）：
+  - `PENDING` → `APPROVED` | `REJECTED`（簽核結果事件）。
+  - `PENDING` → `CANCELLED`（申請人抽單，釋放預扣額度）。
+  - `APPROVED` → `REVOKED`（核准後撤銷，退還額度並重算受影響日期）。
+  - `REJECTED`、`CANCELLED`、`REVOKED` 為終態。
+  - **防護規則**（由 `attendance` 對外公開的防護服務在送單、抽單、撤銷入口檢查；Phase 4 簽核引擎開啟撤銷流程前也呼叫同一服務）：凡牽涉已關帳月份的申請一律拒絕並回傳 `ATT_MONTHLY_PERIOD_CLOSED`（2005），須待 HR 重開該月；選擇 `COMP_LEAVE` 的 `OVERTIME` 申請，若其補休額度桶已有已休或預扣分鐘數則不得撤銷。
+- Phase 3b 於 `attendance` 內部提供**僅限開發與測試環境啟用的直接簽核端點 Stub**（`@Profile({"local", "pgtest"})`，即本機執行與 H2／PostgreSQL 測試所使用的 profile），直接發布上述事件以驗證完整閉環；Phase 4 簽核引擎完成後直接發布相同事件即可無縫接軌。
 
 ### 10. 簽核流程引擎優化（Phase 4）
 
@@ -117,7 +127,9 @@
 - 依個別員工排定之輪班班表（保留擴充點 `WorkScheduleResolver`）。
 - 自動匯入政府公告之調整放假日。
 - 基於 GPS 定位的打卡限制（3a 中可選加入 IP 允許清單）。
-- CI Pipeline 與部署拓撲結構。
+- 部署拓撲結構（CI Pipeline 已於 Phase 3a.5 完成）。
+- 核准加班時數與實際打卡時間取交集（Phase 3b 直接採用核准時數）。
+- 日本深夜加給與單月超過 60 小時加班級距之計算（Phase 3b 僅預載種子資料）。
 
 ## 影響
 

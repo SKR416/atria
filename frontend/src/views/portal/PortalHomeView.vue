@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { punchApi } from '@/api/attendance'
+import { punchApi, leaveOvertimeRuleApi, attendanceRequestApi } from '@/api/attendance'
 import type {
   TodayAttendanceSummaryResponse,
   MonthlyOverviewResponse,
@@ -10,10 +10,21 @@ import type {
   PunchLogResponse,
   WorkCalendarDayResponse,
   AttendanceStatus,
-  PunchSource
+  PunchSource,
+  LeaveDashboardResponse,
+  LeaveTypeResponse,
+  AttendanceRequestResponse,
+  AttendanceRequestStatus,
+  OvertimeCompensationType,
+  CompLeaveConversionMode,
+  LeaveRequestSubmitDto,
+  OvertimeRequestSubmitDto,
+  PunchCorrectionRequestSubmitDto
 } from '@/types/attendance'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
+import Textarea from 'primevue/textarea'
 import Dialog from 'primevue/dialog'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
@@ -35,6 +46,7 @@ import {
   AlertCircle,
   CheckCircle2,
   CalendarDays,
+  CalendarPlus,
   FileText,
   Activity,
   Sparkles
@@ -160,8 +172,8 @@ async function handlePunch() {
       detail: t('attendance.portal.punchSuccess'),
       life: 4000
     })
-    // Immediately reload monthly overview so the calendar and KPI stay in sync
-    await loadMonthlyOverview()
+    // Immediately reload monthly overview and requests so everything stays in sync
+    await refreshAllAttendanceData()
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : t('common.error')
     toast.add({
@@ -474,12 +486,411 @@ function getPunchSourceSeverity(source: PunchSource): 'info' | 'success' | 'warn
   }
 }
 
+// ============================================================================
+// Phase 3b: Attendance Requests & Leave Balance Center
+// ============================================================================
+
+function toIsoInstant(val: string): string {
+  if (!val) return ''
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(val.trim())
+  if (match) {
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    const hour = Number(match[4])
+    const minute = Number(match[5])
+    const second = match[6] ? Number(match[6]) : 0
+    const utcGuessMs = Date.UTC(year, month - 1, day, hour, minute, second)
+    try {
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: effectiveTimezone.value,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+      })
+      const parts = dtf.formatToParts(new Date(utcGuessMs))
+      const map: Record<string, number> = {}
+      for (const p of parts) {
+        if (p.type !== 'literal') map[p.type] = Number(p.value)
+      }
+      const tzWallMs = Date.UTC(
+        map.year ?? year,
+        (map.month ?? month) - 1,
+        map.day ?? day,
+        map.hour ?? hour,
+        map.minute ?? minute,
+        map.second ?? second
+      )
+      const offsetMs = tzWallMs - utcGuessMs
+      return new Date(utcGuessMs - offsetMs).toISOString()
+    } catch {
+      // Fallback if timezone name is invalid
+    }
+  }
+  const d = new Date(val)
+  return isNaN(d.getTime()) ? val : d.toISOString()
+}
+
+const leaveDashboard = ref<LeaveDashboardResponse | null>(null)
+const loadingDashboard = ref<boolean>(false)
+const myRequests = ref<AttendanceRequestResponse[]>([])
+const loadingRequests = ref<boolean>(false)
+const availableLeaveTypes = ref<LeaveTypeResponse[]>([])
+const actionInProgress = ref<Record<number, boolean>>({})
+
+// Form Dialog States
+const leaveDialogVisible = ref<boolean>(false)
+const submittingLeave = ref<boolean>(false)
+const leaveForm = ref<{
+  leaveTypeCode: string
+  startDateTime: string
+  endDateTime: string
+  reason: string
+  attachmentPath: string
+}>({
+  leaveTypeCode: '',
+  startDateTime: '',
+  endDateTime: '',
+  reason: '',
+  attachmentPath: ''
+})
+
+const overtimeDialogVisible = ref<boolean>(false)
+const submittingOvertime = ref<boolean>(false)
+const overtimeForm = ref<{
+  workDate: string
+  startDateTime: string
+  endDateTime: string
+  overtimeCompType: OvertimeCompensationType
+  compLeaveMode: CompLeaveConversionMode
+  reason: string
+}>({
+  workDate: '',
+  startDateTime: '',
+  endDateTime: '',
+  overtimeCompType: 'COMP_LEAVE',
+  compLeaveMode: 'RATE_MULTIPLIED',
+  reason: ''
+})
+
+const correctionDialogVisible = ref<boolean>(false)
+const submittingCorrection = ref<boolean>(false)
+const correctionForm = ref<{
+  workDate: string
+  correctedPunchTime: string
+  reason: string
+}>({
+  workDate: '',
+  correctedPunchTime: '',
+  reason: ''
+})
+
+const leaveTypeOptions = computed(() => {
+  return availableLeaveTypes.value.map((lt) => ({
+    label: `${lt.localizedName} (${lt.code})`,
+    value: lt.code
+  }))
+})
+
+const overtimeCompTypeOptions = computed(() => [
+  { label: t('attendance.overtimeCompTypes.COMP_LEAVE'), value: 'COMP_LEAVE' },
+  { label: t('attendance.overtimeCompTypes.PAY'), value: 'PAY' }
+])
+
+const compLeaveModeOptions = computed(() => [
+  { label: t('attendance.compLeaveModes.RATE_MULTIPLIED'), value: 'RATE_MULTIPLIED' },
+  { label: t('attendance.compLeaveModes.HOURS_1_TO_1'), value: 'HOURS_1_TO_1' }
+])
+
+function openLeaveDialog() {
+  const firstCode = availableLeaveTypes.value[0]?.code || 'ANNUAL'
+  const today = todayDateStr.value
+  leaveForm.value = {
+    leaveTypeCode: firstCode,
+    startDateTime: `${today}T09:00`,
+    endDateTime: `${today}T18:00`,
+    reason: '',
+    attachmentPath: ''
+  }
+  leaveDialogVisible.value = true
+}
+
+function openOvertimeDialog() {
+  const today = todayDateStr.value
+  overtimeForm.value = {
+    workDate: today,
+    startDateTime: `${today}T18:30`,
+    endDateTime: `${today}T20:30`,
+    overtimeCompType: 'COMP_LEAVE',
+    compLeaveMode: 'RATE_MULTIPLIED',
+    reason: ''
+  }
+  overtimeDialogVisible.value = true
+}
+
+function openCorrectionDialog() {
+  const today = todayDateStr.value
+  correctionForm.value = {
+    workDate: today,
+    correctedPunchTime: `${today}T09:00`,
+    reason: ''
+  }
+  correctionDialogVisible.value = true
+}
+
+async function loadLeaveDashboard() {
+  loadingDashboard.value = true
+  try {
+    leaveDashboard.value = await leaveOvertimeRuleApi.getLeaveDashboard()
+  } catch (err: unknown) {
+    console.error('Failed to load leave dashboard', err)
+  } finally {
+    loadingDashboard.value = false
+  }
+}
+
+async function loadMyRequests() {
+  loadingRequests.value = true
+  try {
+    myRequests.value = await attendanceRequestApi.listMyRequests()
+  } catch (err: unknown) {
+    console.error('Failed to load my requests', err)
+  } finally {
+    loadingRequests.value = false
+  }
+}
+
+async function loadAvailableLeaveTypes() {
+  try {
+    availableLeaveTypes.value = await leaveOvertimeRuleApi.listLeaveTypes(true)
+  } catch (err: unknown) {
+    console.error('Failed to load leave types', err)
+  }
+}
+
+async function refreshAllAttendanceData() {
+  await Promise.all([
+    loadTodaySummary(),
+    loadMonthlyOverview(),
+    loadLeaveDashboard(),
+    loadMyRequests()
+  ])
+}
+
+async function handleSubmitLeave() {
+  if (
+    !leaveForm.value.leaveTypeCode ||
+    !leaveForm.value.startDateTime ||
+    !leaveForm.value.endDateTime ||
+    !leaveForm.value.reason.trim()
+  ) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('common.error'), life: 3000 })
+    return
+  }
+  submittingLeave.value = true
+  try {
+    const payload: LeaveRequestSubmitDto = {
+      leaveTypeCode: leaveForm.value.leaveTypeCode,
+      startTime: toIsoInstant(leaveForm.value.startDateTime),
+      endTime: toIsoInstant(leaveForm.value.endDateTime),
+      reason: leaveForm.value.reason.trim(),
+      attachmentPath: leaveForm.value.attachmentPath.trim() || null
+    }
+    await attendanceRequestApi.submitLeave(payload)
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.submitSuccess'),
+      life: 3000
+    })
+    leaveDialogVisible.value = false
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    submittingLeave.value = false
+  }
+}
+
+async function handleSubmitOvertime() {
+  if (
+    !overtimeForm.value.workDate ||
+    !overtimeForm.value.startDateTime ||
+    !overtimeForm.value.endDateTime ||
+    !overtimeForm.value.reason.trim()
+  ) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('common.error'), life: 3000 })
+    return
+  }
+  submittingOvertime.value = true
+  try {
+    const payload: OvertimeRequestSubmitDto = {
+      workDate: overtimeForm.value.workDate,
+      startTime: toIsoInstant(overtimeForm.value.startDateTime),
+      endTime: toIsoInstant(overtimeForm.value.endDateTime),
+      overtimeCompType: overtimeForm.value.overtimeCompType,
+      compLeaveMode:
+        overtimeForm.value.overtimeCompType === 'COMP_LEAVE' ? overtimeForm.value.compLeaveMode : null,
+      reason: overtimeForm.value.reason.trim()
+    }
+    await attendanceRequestApi.submitOvertime(payload)
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.submitSuccess'),
+      life: 3000
+    })
+    overtimeDialogVisible.value = false
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    submittingOvertime.value = false
+  }
+}
+
+async function handleSubmitCorrection() {
+  if (
+    !correctionForm.value.workDate ||
+    !correctionForm.value.correctedPunchTime ||
+    !correctionForm.value.reason.trim()
+  ) {
+    toast.add({ severity: 'error', summary: t('common.error'), detail: t('common.error'), life: 3000 })
+    return
+  }
+  submittingCorrection.value = true
+  try {
+    const payload: PunchCorrectionRequestSubmitDto = {
+      workDate: correctionForm.value.workDate,
+      correctedPunchTime: toIsoInstant(correctionForm.value.correctedPunchTime),
+      reason: correctionForm.value.reason.trim(),
+      attachmentPath: null
+    }
+    await attendanceRequestApi.submitPunchCorrection(payload)
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.submitSuccess'),
+      life: 3000
+    })
+    correctionDialogVisible.value = false
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    submittingCorrection.value = false
+  }
+}
+
+async function handleCancelRequest(id: number) {
+  actionInProgress.value[id] = true
+  try {
+    await attendanceRequestApi.cancelRequest(id)
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.actionSuccess'),
+      life: 3000
+    })
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    actionInProgress.value[id] = false
+  }
+}
+
+async function handleStubApprove(id: number) {
+  actionInProgress.value[id] = true
+  try {
+    await attendanceRequestApi.stubApprove(id)
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.actionSuccess'),
+      life: 3000
+    })
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    actionInProgress.value[id] = false
+  }
+}
+
+async function handleStubReject(id: number) {
+  actionInProgress.value[id] = true
+  try {
+    await attendanceRequestApi.stubReject(id, { comment: 'Rejected in portal simulation' })
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.actionSuccess'),
+      life: 3000
+    })
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    actionInProgress.value[id] = false
+  }
+}
+
+async function handleStubRevoke(id: number) {
+  actionInProgress.value[id] = true
+  try {
+    await attendanceRequestApi.stubRevoke(id, { reason: 'Revoked in portal simulation' })
+    toast.add({
+      severity: 'success',
+      summary: t('common.success'),
+      detail: t('attendance.requests.actionSuccess'),
+      life: 3000
+    })
+    await refreshAllAttendanceData()
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : t('common.error')
+    toast.add({ severity: 'error', summary: t('common.error'), detail: msg, life: 4000 })
+  } finally {
+    actionInProgress.value[id] = false
+  }
+}
+
+function getRequestStatusSeverity(
+  status: AttendanceRequestStatus
+): 'success' | 'warn' | 'danger' | 'secondary' {
+  switch (status) {
+    case 'APPROVED':
+      return 'success'
+    case 'PENDING':
+      return 'warn'
+    case 'REJECTED':
+      return 'danger'
+    case 'CANCELLED':
+    case 'REVOKED':
+    default:
+      return 'secondary'
+  }
+}
+
 onMounted(() => {
   clockTimer = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
   loadTodaySummary()
   loadMonthlyOverview()
+  loadLeaveDashboard()
+  loadMyRequests()
+  loadAvailableLeaveTypes()
 })
 
 onUnmounted(() => {
@@ -1038,6 +1449,258 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- Phase 3b: Attendance Requests & Leave Balance Center -->
+    <section class="atria-card requests-center-card">
+      <div class="center-header">
+        <div class="center-title-group">
+          <CalendarPlus :size="20" class="card-icon" />
+          <h2 class="card-title">{{ t('attendance.requests.sectionTitle') }}</h2>
+        </div>
+        <div class="action-buttons-bar">
+          <Button
+            size="small"
+            severity="primary"
+            icon="pi pi-calendar-plus"
+            :label="t('attendance.requests.newLeaveBtn')"
+            data-testid="portal-apply-leave-btn"
+            @click="openLeaveDialog"
+          />
+          <Button
+            size="small"
+            severity="warn"
+            icon="pi pi-clock"
+            :label="t('attendance.requests.newOvertimeBtn')"
+            data-testid="portal-apply-overtime-btn"
+            @click="openOvertimeDialog"
+          />
+          <Button
+            size="small"
+            severity="secondary"
+            outlined
+            icon="pi pi-file-edit"
+            :label="t('attendance.requests.newCorrectionBtn')"
+            data-testid="portal-apply-correction-btn"
+            @click="openCorrectionDialog"
+          />
+        </div>
+      </div>
+
+      <!-- 90-Day Expiring Compensatory Leave Alert Banner -->
+      <div
+        v-if="leaveDashboard && leaveDashboard.expiringCompLeavesWithin90Days && leaveDashboard.expiringCompLeavesWithin90Days.length > 0"
+        class="expiring-comp-banner"
+        data-testid="portal-expiring-comp-alert"
+      >
+        <div class="banner-heading">
+          <AlertCircle :size="18" class="banner-icon-warn" />
+          <span class="banner-title font-bold">{{ t('attendance.requests.expiringCompAlertTitle') }}</span>
+        </div>
+        <ul class="expiring-comp-list">
+          <li
+            v-for="item in leaveDashboard.expiringCompLeavesWithin90Days"
+            :key="item.balanceId"
+            class="expiring-comp-item"
+          >
+            {{ t('attendance.requests.expiringCompItem', {
+              workDate: item.workDate || '—',
+              mins: item.remainingMinutes,
+              expiresAt: item.expiresAt?.slice(0, 10),
+              days: item.daysUntilExpiry
+            }) }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Japan 5-Day Mandatory Annual Leave Obligation Progress Bar -->
+      <div
+        v-if="leaveDashboard?.jpFiveDayObligation?.applicable"
+        class="jp-obligation-card"
+        data-testid="portal-jp-obligation-card"
+      >
+        <div class="jp-obligation-header">
+          <div class="jp-title-line">
+            <span class="jp-badge">JP</span>
+            <span class="font-bold">{{ t('attendance.requests.jpObligationTitle') }}</span>
+          </div>
+          <Tag
+            :value="leaveDashboard.jpFiveDayObligation.fulfilled
+              ? t('attendance.requests.jpObligationFulfilled')
+              : t('attendance.requests.jpObligationRemaining', {
+                  mins: leaveDashboard.jpFiveDayObligation.remainingObligationMinutes,
+                  deadline: leaveDashboard.jpFiveDayObligation.deadlineDate || '-'
+                })"
+            :severity="leaveDashboard.jpFiveDayObligation.fulfilled ? 'success' : 'warn'"
+          />
+        </div>
+        <div class="jp-progress-track">
+          <div
+            class="jp-progress-fill"
+            :class="{ 'jp-fill-success': leaveDashboard.jpFiveDayObligation.fulfilled }"
+            :style="{
+              width: `${Math.min(100, Math.round(((leaveDashboard.jpFiveDayObligation.usedMinutes || 0) / (leaveDashboard.jpFiveDayObligation.targetMinutes || 2400)) * 100))}%`
+            }"
+          ></div>
+        </div>
+        <div class="jp-progress-meta font-mono text-xs">
+          <span>{{ formatHoursMins(leaveDashboard.jpFiveDayObligation.usedMinutes) }} / {{ formatHoursMins(leaveDashboard.jpFiveDayObligation.targetMinutes) }}</span>
+          <span>{{ Math.min(100, Math.round(((leaveDashboard.jpFiveDayObligation.usedMinutes || 0) / (leaveDashboard.jpFiveDayObligation.targetMinutes || 2400)) * 100)) }}%</span>
+        </div>
+      </div>
+
+      <!-- FIFO Leave Balance Cards Grid -->
+      <div class="leave-balance-section">
+        <h3 class="subsection-title">{{ t('attendance.requests.balanceCardsTitle') }}</h3>
+        <div class="leave-balance-grid" data-testid="portal-leave-balance-grid">
+          <div
+            v-for="b in (leaveDashboard?.balances || [])"
+            :key="b.leaveTypeCode"
+            class="balance-card"
+          >
+            <div class="balance-card-header">
+              <span class="balance-type-name font-bold">{{ b.localizedLeaveTypeName }}</span>
+              <div class="balance-badges">
+                <span v-if="b.paid" class="atria-badge atria-badge-success text-xs">{{ t('attendance.leaveOvertime.paid') }}</span>
+                <span v-else class="atria-badge atria-badge-warning text-xs">{{ t('attendance.leaveOvertime.balanceTracked') }}</span>
+              </div>
+            </div>
+            <div class="balance-main-num font-mono">
+              <span class="balance-avail">{{ formatHoursMins(b.availableMinutes) }}</span>
+              <span class="balance-avail-sub">{{ t('attendance.requests.availableLabel') }}</span>
+            </div>
+            <div class="balance-details-grid font-mono text-xs">
+              <div class="detail-cell">
+                <span class="detail-label">{{ t('attendance.requests.usedLabel') }}</span>
+                <span class="detail-val">{{ formatHoursMins(b.usedMinutes) }}</span>
+              </div>
+              <div class="detail-cell">
+                <span class="detail-label">{{ t('attendance.requests.pendingLabel') }}</span>
+                <span class="detail-val">{{ formatHoursMins(b.pendingMinutes) }}</span>
+              </div>
+              <div class="detail-cell">
+                <span class="detail-label">{{ t('attendance.requests.totalLabel') }}</span>
+                <span class="detail-val">{{ formatHoursMins(b.totalMinutes) }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-if="!leaveDashboard?.balances?.length && !loadingDashboard" class="empty-balance-hint">
+            {{ t('common.noData') }}
+          </div>
+        </div>
+      </div>
+
+      <!-- My Attendance Requests Table -->
+      <div class="my-requests-section">
+        <div class="requests-table-header">
+          <h3 class="subsection-title">{{ t('attendance.requests.myRequestsTitle') }}</h3>
+          <Button
+            size="small"
+            text
+            icon="pi pi-refresh"
+            :loading="loadingRequests"
+            @click="loadMyRequests"
+          />
+        </div>
+        <div class="requests-table-wrapper" data-testid="portal-my-requests-table">
+          <table class="atria-table requests-table">
+            <thead>
+              <tr>
+                <th style="width: 70px">#</th>
+                <th>{{ t('attendance.requests.requestType') }}</th>
+                <th>{{ t('attendance.requests.dateRange') }}</th>
+                <th>{{ t('attendance.requests.requestedMinutes') }}</th>
+                <th>{{ t('iam.role.status') }}</th>
+                <th>{{ t('attendance.requests.warningMessages') }}</th>
+                <th style="width: 280px">{{ t('common.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="req in myRequests" :key="req.id">
+                <td class="font-mono text-xs font-bold">#{{ req.id }}</td>
+                <td>
+                  <div class="req-type-cell">
+                    <span class="font-bold">{{ t('attendance.requestTypes.' + req.requestType) }}</span>
+                    <span v-if="req.localizedLeaveTypeName" class="req-subtype-tag">{{ req.localizedLeaveTypeName }}</span>
+                  </div>
+                </td>
+                <td class="font-mono text-xs">
+                  <div>{{ req.startDate === req.endDate ? req.startDate : `${req.startDate} ~ ${req.endDate}` }}</div>
+                  <div class="time-sub text-muted">{{ formatTimeOnly(req.startTime) }} - {{ formatTimeOnly(req.endTime) }}</div>
+                </td>
+                <td class="font-mono text-xs">
+                  <div class="font-bold">{{ formatHoursMins(req.requestedMinutes) }}</div>
+                  <div v-if="req.weightedMinutes && req.weightedMinutes !== req.requestedMinutes" class="weighted-sub">
+                    {{ t('attendance.requests.weightedMinutes') }}: {{ formatHoursMins(req.weightedMinutes) }}
+                  </div>
+                </td>
+                <td>
+                  <Tag
+                    :value="t('attendance.requestStatuses.' + req.status)"
+                    :severity="getRequestStatusSeverity(req.status)"
+                  />
+                </td>
+                <td class="warning-col">
+                  <span v-if="req.warningMessages" class="warning-text" :title="req.warningMessages">
+                    <AlertCircle :size="13" class="warn-icon-inline" />
+                    {{ req.warningMessages }}
+                  </span>
+                  <span v-else class="text-muted">—</span>
+                </td>
+                <td>
+                  <div class="req-actions-group">
+                    <template v-if="req.status === 'PENDING'">
+                      <Button
+                        size="small"
+                        severity="secondary"
+                        outlined
+                        :label="t('attendance.requests.cancelBtn')"
+                        data-testid="req-cancel-btn"
+                        :loading="actionInProgress[req.id]"
+                        @click="handleCancelRequest(req.id)"
+                      />
+                      <Button
+                        size="small"
+                        severity="success"
+                        :label="t('attendance.requests.stubApproveBtn')"
+                        data-testid="req-stub-approve-btn"
+                        :loading="actionInProgress[req.id]"
+                        @click="handleStubApprove(req.id)"
+                      />
+                      <Button
+                        size="small"
+                        severity="danger"
+                        outlined
+                        :label="t('attendance.requests.stubRejectBtn')"
+                        data-testid="req-stub-reject-btn"
+                        :loading="actionInProgress[req.id]"
+                        @click="handleStubReject(req.id)"
+                      />
+                    </template>
+                    <template v-else-if="req.status === 'APPROVED'">
+                      <Button
+                        size="small"
+                        severity="warn"
+                        outlined
+                        :label="t('attendance.requests.stubRevokeBtn')"
+                        data-testid="req-stub-revoke-btn"
+                        :loading="actionInProgress[req.id]"
+                        @click="handleStubRevoke(req.id)"
+                      />
+                    </template>
+                    <span v-else class="text-muted text-xs">—</span>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="myRequests.length === 0">
+                <td colspan="7" class="text-center text-muted empty-cell">
+                  {{ loadingRequests ? t('common.loading') : t('common.noData') }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- Day Detail Dialog -->
     <Dialog
       v-model:visible="dayDetailVisible"
@@ -1165,6 +1828,215 @@ onUnmounted(() => {
           severity="secondary"
           outlined
           @click="dayDetailVisible = false"
+        />
+      </template>
+    </Dialog>
+
+    <!-- 1. Leave Request Dialog -->
+    <Dialog
+      v-model:visible="leaveDialogVisible"
+      modal
+      :header="t('attendance.requests.newLeaveBtn')"
+      :style="{ width: '500px', maxWidth: '95vw' }"
+      data-testid="leave-request-dialog"
+    >
+      <div class="dialog-form-body">
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.leaveType') }}</label>
+          <Select
+            v-model="leaveForm.leaveTypeCode"
+            :options="leaveTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.startTime') }}</label>
+          <input
+            v-model="leaveForm.startDateTime"
+            type="datetime-local"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.endTime') }}</label>
+          <input
+            v-model="leaveForm.endDateTime"
+            type="datetime-local"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.reason') }}</label>
+          <Textarea
+            v-model="leaveForm.reason"
+            rows="3"
+            class="w-full"
+            :placeholder="t('attendance.requests.reason')"
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.attachmentPath') }}</label>
+          <InputText
+            v-model="leaveForm.attachmentPath"
+            class="w-full"
+            placeholder="docs/medical-cert-2026.pdf"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="leaveDialogVisible = false"
+        />
+        <Button
+          :label="t('common.submit')"
+          severity="primary"
+          :loading="submittingLeave"
+          data-testid="submit-leave-request-btn"
+          @click="handleSubmitLeave"
+        />
+      </template>
+    </Dialog>
+
+    <!-- 2. Overtime Request Dialog -->
+    <Dialog
+      v-model:visible="overtimeDialogVisible"
+      modal
+      :header="t('attendance.requests.newOvertimeBtn')"
+      :style="{ width: '500px', maxWidth: '95vw' }"
+      data-testid="overtime-request-dialog"
+    >
+      <div class="dialog-form-body">
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.workDate') }}</label>
+          <input
+            v-model="overtimeForm.workDate"
+            type="date"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.startTime') }}</label>
+          <input
+            v-model="overtimeForm.startDateTime"
+            type="datetime-local"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.endTime') }}</label>
+          <input
+            v-model="overtimeForm.endDateTime"
+            type="datetime-local"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.compType') }}</label>
+          <Select
+            v-model="overtimeForm.overtimeCompType"
+            :options="overtimeCompTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+        <div v-if="overtimeForm.overtimeCompType === 'COMP_LEAVE'" class="form-field">
+          <label class="font-bold">{{ t('attendance.leaveOvertime.defaultCompMode') }}</label>
+          <Select
+            v-model="overtimeForm.compLeaveMode"
+            :options="compLeaveModeOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.reason') }}</label>
+          <Textarea
+            v-model="overtimeForm.reason"
+            rows="3"
+            class="w-full"
+            :placeholder="t('attendance.requests.reason')"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="overtimeDialogVisible = false"
+        />
+        <Button
+          :label="t('common.submit')"
+          severity="primary"
+          :loading="submittingOvertime"
+          data-testid="submit-overtime-request-btn"
+          @click="handleSubmitOvertime"
+        />
+      </template>
+    </Dialog>
+
+    <!-- 3. Punch Correction Request Dialog -->
+    <Dialog
+      v-model:visible="correctionDialogVisible"
+      modal
+      :header="t('attendance.requests.newCorrectionBtn')"
+      :style="{ width: '500px', maxWidth: '95vw' }"
+      data-testid="correction-request-dialog"
+    >
+      <div class="dialog-form-body">
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.workDate') }}</label>
+          <input
+            v-model="correctionForm.workDate"
+            type="date"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.correctedPunchTime') }}</label>
+          <input
+            v-model="correctionForm.correctedPunchTime"
+            type="datetime-local"
+            class="atria-native-input"
+            required
+          />
+        </div>
+        <div class="form-field">
+          <label class="font-bold">{{ t('attendance.requests.reason') }}</label>
+          <Textarea
+            v-model="correctionForm.reason"
+            rows="3"
+            class="w-full"
+            :placeholder="t('attendance.requests.reason')"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="correctionDialogVisible = false"
+        />
+        <Button
+          :label="t('common.submit')"
+          severity="primary"
+          :loading="submittingCorrection"
+          data-testid="submit-correction-request-btn"
+          @click="handleSubmitCorrection"
         />
       </template>
     </Dialog>
@@ -2171,6 +3043,350 @@ onUnmounted(() => {
 .d-note {
   color: #1e40af;
   font-style: italic;
+}
+
+/* Phase 3b: Requests & Leave Balance Center */
+.requests-center-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+.center-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--atria-border, #e2e8f0);
+}
+
+.center-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-buttons-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* 90-Day Expiring Comp Banner */
+.expiring-comp-banner {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+}
+
+.banner-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #92400e;
+  margin-bottom: 0.35rem;
+}
+
+.banner-icon-warn {
+  color: #d97706;
+}
+
+.banner-title {
+  font-size: 0.875rem;
+}
+
+.expiring-comp-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #b45309;
+  font-size: 0.8125rem;
+}
+
+.expiring-comp-item {
+  margin-bottom: 0.2rem;
+}
+
+/* Japan 5-Day Obligation */
+.jp-obligation-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--atria-radius, 6px);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.jp-obligation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.jp-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.jp-badge {
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+}
+
+.jp-progress-track {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.jp-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.jp-fill-success {
+  background: #22c55e;
+}
+
+.jp-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  color: #64748b;
+}
+
+/* Leave Balance Grid */
+.leave-balance-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subsection-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--atria-text, #0f172a);
+}
+
+.leave-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.balance-card {
+  background: var(--atria-surface-subtle, #f8fafc);
+  border: 1px solid var(--atria-border, #e2e8f0);
+  border-radius: var(--atria-radius, 6px);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.balance-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.balance-type-name {
+  font-size: 0.875rem;
+  color: var(--atria-text, #0f172a);
+}
+
+.balance-badges {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.balance-main-num {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.balance-avail {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.balance-avail-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.balance-details-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.detail-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-label {
+  font-size: 0.6875rem;
+  color: #64748b;
+}
+
+.detail-val {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.empty-balance-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 1rem;
+  color: #94a3b8;
+  font-size: 0.8125rem;
+}
+
+/* My Requests Table */
+.my-requests-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.requests-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.requests-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--atria-border, #e2e8f0);
+  border-radius: var(--atria-radius, 6px);
+}
+
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.requests-table th,
+.requests-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--atria-border, #e2e8f0);
+}
+
+.requests-table th {
+  background: var(--atria-surface-subtle, #f8fafc);
+  font-weight: 600;
+  color: #475569;
+}
+
+.requests-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+.req-type-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.req-subtype-tag {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.time-sub,
+.weighted-sub {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.warning-col {
+  max-width: 200px;
+}
+
+.warning-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #b45309;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.warn-icon-inline {
+  flex-shrink: 0;
+}
+
+.req-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.empty-cell {
+  padding: 1.5rem !important;
+}
+
+/* Dialog Form Styles */
+.dialog-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-field label {
+  font-size: 0.8125rem;
+  color: #334155;
+}
+
+.atria-native-input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--atria-border, #cbd5e1);
+  border-radius: var(--atria-radius, 6px);
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--atria-text, #0f172a);
+  background: var(--atria-surface, #ffffff);
+}
+
+.atria-native-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 /* Responsiveness */

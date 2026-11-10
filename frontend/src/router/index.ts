@@ -85,6 +85,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, requiresAdmin: true, permission: 'att:calendar:read' }
       },
       {
+        path: 'attendance/leave-overtime',
+        name: 'admin-attendance-leave-overtime',
+        component: () => import('@/views/admin/attendance/LeaveOvertimeManageView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true, permission: 'att:calendar:read' }
+      },
+      {
         path: 'attendance/monthly-close',
         name: 'admin-attendance-monthly-close',
         component: () => import('@/views/admin/attendance/MonthlyCloseView.vue'),

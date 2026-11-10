@@ -16,6 +16,7 @@ import {
   ExternalLink,
   UserCheck,
   CalendarDays,
+  Scale,
   LockKeyhole
 } from 'lucide-vue-next'
 
@@ -119,6 +120,16 @@ function navigateTo(path: string) {
           >
             <CalendarDays :size="16" class="nav-icon" />
             <span class="nav-label">{{ t('nav.workCalendar') }}</span>
+          </RouterLink>
+
+          <RouterLink
+            to="/admin/attendance/leave-overtime"
+            class="sidebar-nav-item"
+            active-class="sidebar-nav-item-active"
+            data-testid="nav-leave-overtime-rules"
+          >
+            <Scale :size="16" class="nav-icon" />
+            <span class="nav-label">{{ t('nav.leaveOvertimeRules') }}</span>
           </RouterLink>
 
           <RouterLink

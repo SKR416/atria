@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: 'Enterprise Attendance & Approval Platform',
-    version: 'v0.4.0'
+    version: 'v0.4.5'
   },
   common: {
     search: 'Search',
@@ -65,7 +65,10 @@ export default {
     'att:record:write': 'Modify Attendance Records',
     'att:calendar:read': 'View Work Calendars & Rules',
     'att:calendar:write': 'Manage Work Calendars & Rules',
-    'att:monthly-close:manage': 'Manage Monthly Closing & Settlement'
+    'att:monthly-close:manage': 'Manage Monthly Closing & Settlement',
+    'att:request:self': 'Self-Service Attendance Requests',
+    'att:rule:read': 'View Leave & Overtime Rules',
+    'att:rule:write': 'Manage Leave & Overtime Rules'
   },
   halls: {
     public: 'Public Notice Hall',
@@ -86,6 +89,7 @@ export default {
     auditLogs: 'Audit Logs',
     attendanceGroup: 'Attendance & Calendar',
     workCalendar: 'Work Calendars',
+    leaveOvertimeRules: 'Leave & Overtime Rules',
     monthlyClose: 'Monthly Closing'
   },
   auth: {
@@ -329,6 +333,127 @@ export default {
       reopenedAt: 'Reopened At',
       blockingAlertTitle: 'Monthly Close Blocked: Unresolved PENDING Requests Found',
       noBlockingRequests: 'No pending requests found for this period; ready to close.'
+    },
+    requestTypes: {
+      LEAVE: 'Leave Request',
+      OVERTIME: 'Overtime Request',
+      PUNCH_CORRECTION: 'Punch Correction'
+    },
+    requestStatuses: {
+      PENDING: 'Pending (PENDING)',
+      APPROVED: 'Approved (APPROVED)',
+      REJECTED: 'Rejected (REJECTED)',
+      CANCELLED: 'Withdrawn (CANCELLED)',
+      REVOKED: 'Revoked (REVOKED)'
+    },
+    overtimeCompTypes: {
+      PAY: 'Overtime Pay (PAY)',
+      COMP_LEAVE: 'Compensatory Leave (COMP_LEAVE)'
+    },
+    compLeaveModes: {
+      HOURS_1_TO_1: '1:1 Hours Conversion',
+      RATE_MULTIPLIED: 'Multiplier-Weighted Conversion (CEILING)'
+    },
+    capActions: {
+      WARN: 'Soft Warning (WARN)',
+      BLOCK: 'Hard Block (BLOCK)'
+    },
+    grantBases: {
+      ANNIVERSARY: 'Hire Anniversary (ANNIVERSARY)',
+      CALENDAR_YEAR: 'Calendar Year (CALENDAR_YEAR)'
+    },
+    requests: {
+      sectionTitle: 'Attendance Requests & Leave Balance Center',
+      newLeaveBtn: 'Apply Leave',
+      newOvertimeBtn: 'Apply Overtime',
+      newCorrectionBtn: 'Punch Correction',
+      balanceCardsTitle: 'Personal Leave Balance Ledger (FIFO Earliest Expiry First)',
+      availableLabel: 'Available',
+      usedLabel: 'Used',
+      pendingLabel: 'Frozen (Pending)',
+      totalLabel: 'Total Granted',
+      validUntilLabel: 'Expires {date}',
+      expiringCompAlertTitle: 'Compensatory Leave Expiring Within 90 Days',
+      expiringCompItem: 'OT Date {workDate}: {mins} mins remaining (Expires {expiresAt}, {days}d left)',
+      jpObligationTitle: 'JP LSA Mandatory 5-Day Annual Leave Utilization Progress',
+      jpObligationFulfilled: 'Statutory 5-day (2400 mins) annual leave obligation fulfilled',
+      jpObligationRemaining: '{mins} mins remaining to meet mandatory 5-day target (Deadline: {deadline})',
+      myRequestsTitle: 'My Attendance Requests & Approval Status',
+      requestType: 'Type',
+      leaveType: 'Leave Type',
+      dateRange: 'Work Date(s)',
+      timeRange: 'Time Interval',
+      requestedMinutes: 'Requested Mins',
+      weightedMinutes: 'Weighted Mins',
+      compType: 'Compensation',
+      reason: 'Reason',
+      attachmentPath: 'Attachment Ref / Path',
+      warningMessages: 'Statutory Cap Warnings',
+      cancelBtn: 'Withdraw',
+      stubApproveBtn: 'Sim Approve',
+      stubRejectBtn: 'Sim Reject',
+      stubRevokeBtn: 'Sim Revoke',
+      revokeReasonPrompt: 'Enter revocation reason',
+      submitSuccess: 'Attendance request submitted successfully!',
+      actionSuccess: 'Request status updated!',
+      workDate: 'Work Date',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      correctedPunchTime: 'Corrected Punch Time'
+    },
+    leaveOvertime: {
+      title: 'Leave Balances, Seniority Tiers & Overtime Rules',
+      subtitle: 'Configure leave types, TW/JP seniority annual leave tiers, overtime rate bands, caps, and balance grants',
+      tabLeaveTypes: 'Leave Types & Min Units',
+      tabGrantRules: 'Seniority Annual Leave Tiers',
+      tabOvertimeRates: 'Overtime Rate Bands',
+      tabOvertimeCaps: 'Overtime Cap Rules',
+      tabBalanceOps: 'Annual Grant Job & Manual Grant',
+      addLeaveType: 'New Leave Type',
+      editLeaveType: 'Edit Leave Type',
+      leaveCode: 'Leave Code',
+      minUnitMinutes: 'Min Unit (mins)',
+      paid: 'Paid Leave',
+      balanceTracked: 'Track Balance Ledger',
+      attachmentRequired: 'Attachment Required',
+      addGrantRule: 'New Seniority Tier',
+      editGrantRule: 'Edit Seniority Tier',
+      grantBasis: 'Grant Basis',
+      minTenureMonths: 'Min Tenure (months)',
+      maxTenureMonths: 'Max Tenure (months, empty=open)',
+      grantDays: 'Grant Days',
+      grantMinutes: 'Grant Minutes',
+      validMonths: 'Validity (months)',
+      addRateRule: 'New Overtime Rate Band',
+      editRateRule: 'Edit Overtime Rate Band',
+      fromMinute: 'From Minute',
+      toMinute: 'To Minute',
+      multiplier: 'Multiplier',
+      nightPremium: 'Night Premium Band',
+      monthlyCumulative: 'Monthly Cumulative Band',
+      defaultCompMode: 'Default Comp-Leave Mode',
+      addCapRule: 'New Overtime Cap Rule',
+      editCapRule: 'Edit Overtime Cap Rule',
+      ruleCode: 'Rule Code',
+      periodMonths: 'Period (months)',
+      maxMinutes: 'Max Minutes',
+      enforcementAction: 'Action',
+      runAnnualGrantTitle: 'Run Anniversary Annual Leave Auto-Grant',
+      runAnnualGrantDesc: 'Evaluates all active employees by hire_date and grants statutory annual leave buckets for their regional calendar (TW/JP).',
+      asOfDateLabel: 'As-Of Date',
+      runAnnualGrantBtn: 'Run Annual Grant Now',
+      manualGrantTitle: 'HR Manual Leave Balance Grant',
+      targetUserId: 'Target User ID',
+      grantMinutesLabel: 'Grant Minutes (480m = 1d)',
+      validFromLabel: 'Valid From',
+      validUntilLabel: 'Valid Until',
+      manualGrantBtn: 'Grant Leave Bucket',
+      manualGrantDesc: 'Directly credit a leave quota bucket into the employee FIFO balance ledger.',
+      monthsUnit: 'mo',
+      daysUnit: 'days',
+      grantedCountLabel: 'Granted Count',
+      skippedGrantedCountLabel: 'Skipped (Already Granted)',
+      skippedMissingHireDateLabel: 'Skipped missing hire_date:'
     }
   }
 }

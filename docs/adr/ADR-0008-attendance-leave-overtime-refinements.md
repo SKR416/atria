@@ -34,17 +34,22 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
   - **JP template:** Sat = `REST_DAY`, Sun = `STATUTORY_REST_DAY`; algorithmic holidays per the Cabinet Office rules (fixed dates, Happy Monday, vernal/autumnal equinox formula, 振替休日, 国民の休日).
 - Templates are generated in Java (no external API dependency) and covered by unit tests against published holiday lists.
 
-### 3. Daily Settlement Job
+### 3. Daily Settlement Job & Daily Record Recomputation with Approved Requests
 
 - A scheduled job runs per timezone after `day_cutoff_hour` (default `04:00`) to finalize the previous logical work date, producing `MISSING_PUNCH` / `ABSENT` statuses.
-- Approved leave or punch-correction requests trigger recomputation of only the affected dates.
+- Approved leave, overtime, or punch-correction requests trigger recomputation of only the affected dates via `AttendanceRecordCalculator.recomputeDailyRecord(userId, workDate, settledPass)`:
+  - **Approved `LEAVE`:** aggregates daily approved `leaveMinutes`. If a leave interval covers the scheduled shift start (e.g. `09:00`–`13:00`), the lateness threshold shifts to the leave end time (`13:00`); if it covers the scheduled shift end (e.g. `14:00`–`18:00`), the early-leave threshold shifts to the leave start time (`14:00`). When `workedMinutes + leaveMinutes >= 480` with no lateness or early leave, `status` evaluates to `NORMAL` (or `ON_LEAVE` when `leaveMinutes >= 480`).
+  - **Approved `OVERTIME`:** aggregates daily approved `overtimeMinutes` on `att_daily_record`. **Phase 3b counts the approved minutes as-is**; intersecting approved overtime with actual punch times is deferred.
+  - **Approved `PUNCH_CORRECTION`:** appends an immutable `CORRECTION` row to `att_punch_log` referencing the request via the existing `correction_request_id` column (V3; V4 adds the foreign key to `att_request`), then invokes `recomputeDailyRecord`.
 
-### 4. Leave Types, Minimum Units & Seniority-Based Annual Leave
+### 4. Leave Types, Minimum Units, Seniority-Based Annual Leave & FIFO Balance Ledger
 
 - **`att_leave_type`**: trilingual name (`JSONB`), `min_unit_minutes` (e.g. 30, 60, 240 = half-day; configurable per type), paid flag, balance-tracked flag.
 - **Duration calculation:** net minutes = requested interval ∩ working time of the calendar, minus the fixed 12:00–13:00 lunch break, rounded **up** to a multiple of `min_unit_minutes`.
+- **FIFO balance deduction & exact audit trail (`att_leave_balance_tx`):** when an employee holds multiple active `att_leave_balance` buckets (e.g. deferred vs. current-year annual leave, or multiple comp-leave grants), deductions automatically follow **`valid_until ASC` (FIFO — earliest-expiring first)**. Each per-bucket freeze (`PENDING`), commit (`APPROVED`), or restore (`REJECTED` / `REVOKED`) is recorded in `att_leave_balance_tx` (`request_id`, `balance_id`, `tx_type`, `minutes`) so rejections and revocations restore 100% accurately to the original balance rows.
+- **Single source of truth for comp leave:** every `att_comp_leave_grant` also creates one `att_leave_balance` bucket (`source_comp_grant_id` → grant). Comp-leave usage is tracked **only** in `att_leave_balance` / `att_leave_balance_tx`; the grant row never stores used minutes.
 - **`att_leave_grant_rule`** (rule table, seeded per `calendar_code`):
-  - **TW (Art. 38):** 6 mo–1 yr: 3 days; 1–2 yrs: 7; 2–3 yrs: 10; 3–5 yrs: 14; 5–10 yrs: 15; 10+ yrs: +1 day/yr up to 30. Grant basis configurable: anniversary (週年制) or calendar year (曆年制). Unused days at year end: pay-out or one-year deferral per agreement.
+  - **TW (Art. 38):** 6 mo–1 yr: 3 days; 1–2 yrs: 7; 2–3 yrs: 10; 3–5 yrs: 14; 5–10 yrs: 15; 10+ yrs: +1 day/yr up to 30. Grant basis column supports `ANNIVERSARY` (週年制) or `CALENDAR_YEAR` (曆年制); **Phase 3b implements the Anniversary Basis (`ANNIVERSARY`) algorithm** as the primary engine. Unused days at year end: pay-out or one-year deferral per agreement.
   - **JP (Art. 39):** 6 mo: 10 days; 1.5 yrs: 11; 2.5: 12; 3.5: 14; 4.5: 16; 5.5: 18; 6.5+: 20. Requires ≥ 80% attendance in the prior period; 2-year expiry. Hourly annual leave (時間単位年休) capped at 5 days/year. Tracks the mandatory 5-days-per-year utilization obligation (年5日取得義務) for employees granted ≥ 10 days.
 - A scheduled grant job creates `att_leave_balance` rows automatically; HR may still grant manual/negotiated leave.
 - **Prerequisite:** `iam_user.hire_date DATE` (see Decision 11).
@@ -52,19 +57,21 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
 ### 5. Overtime Recording, Rate Rules & Caps
 
 - Atria records **approved overtime minutes and their weighted equivalents**, never monetary amounts (no salary data is stored). Payroll systems consume the weighted-hour export (Phase 5).
-- **`att_overtime_rate_rule`**: `calendar_code`, `day_type`, `from_minute`, `to_minute`, `multiplier`, `is_night_premium`. Seeded templates (editable by HR):
-  - **TW:** weekday overtime first 2 h ×1⅓, from 3rd h ×1⅔; rest-day work ×1⅓ / ×1⅔ banding; statutory rest day & national holiday ×2.
+- **`att_overtime_rate_rule`**: `calendar_code`, `day_type`, `from_minute`, `to_minute`, `multiplier` (`NUMERIC(6,4)`), `is_night_premium`. Seeded templates (editable by HR):
+  - **TW:** practical HR standard multipliers — weekday overtime first 2 h **`×1.34`** (`1.3400`), from 3rd h **`×1.67`** (`1.6700`); rest-day work **`×1.34`** (first 2 h) / **`×1.67`** (3rd–8th h) / **`×2.67`** (9th–12th h); statutory rest day & national holiday **`×2.00`**.
+    - *Known simplification:* under LSA Art. 39/40, work on a national holiday or statutory rest day within 8 hours is paid as one additional **day's** wage (per-day, not per-minute), hours beyond 8 fall under overtime rates, and statutory-rest-day work is only lawful under Art. 40 with a compensatory day off. The flat per-minute `×2.00` band is a modeling simplification to be confirmed by HR/legal before production use.
   - **JP:** overtime ×1.25; monthly overtime beyond 60 h ×1.50; statutory holiday ×1.35; late-night (22:00–05:00) +0.25 additive.
+    - *Phase 3b engine scope:* the calculator evaluates only cumulative-minute bands (`from_minute` / `to_minute`). The late-night premium (clock-time based) and the > 60 h/month band (monthly-cumulative) are seeded for display but **not evaluated** until a later phase.
 - **`att_overtime_cap_rule`**: configurable monthly / multi-month / yearly caps with `WARN` or `BLOCK` action at submission. Seeds: TW 46 h/month (54 h/month and 138 h/3 months with consent); JP Article 36 agreement 45 h/month & 360 h/year, special clause 720 h/year, < 100 h/month incl. holiday work, ≤ 80 h 2–6 month average, > 45 h at most 6 times/year.
 - Each `OVERTIME` request chooses compensation: `PAY` or `COMP_LEAVE`.
 
-### 6. Compensatory Leave Conversion (Configurable Ratio)
+### 6. Compensatory Leave Conversion (Configurable Ratio & Rounding)
 
 - **`comp_leave_mode`** per `calendar_code` (or per rate rule):
   - `HOURS_1_TO_1` — statutory baseline: comp minutes = overtime minutes.
-  - `RATE_MULTIPLIED` — company incentive (common practice): comp minutes = Σ(band minutes × band `multiplier`). Validation enforces an effective ratio ≥ 1.0.
-- Every comp-leave grant row stores its source `att_request`, the **original overtime minutes per rate band**, granted minutes, and `expires_at`.
-- **TW expiry / termination (Art. 32-1):** unused comp leave must be paid at overtime rates. The engine converts the unused fraction back to *original* overtime minutes per band (not inflated comp minutes) and emits a payable weighted-hour record.
+  - `RATE_MULTIPLIED` — company incentive (common practice): comp minutes = `CEILING(Σ(band minutes × band multiplier))` using `BigDecimal` arithmetic and **`RoundingMode.CEILING` to whole minutes** (employee-favorable rounding). Validation enforces an effective ratio ≥ 1.0.
+- Every `att_comp_leave_grant` row stores its source `att_request`, the **original overtime minutes per rate band (`band_breakdown_json`)**, granted minutes, and `expires_at`; used / remaining minutes are read from its linked `att_leave_balance` bucket (Decision 4).
+- **TW expiry / termination (Art. 32-1):** unused comp leave must be paid at overtime rates. The engine takes the unused fraction (bucket remaining ÷ granted minutes) and converts it back to *original* overtime minutes per band via `band_breakdown_json` (avoiding double-multiplication rounding drift) and emits a payable weighted-hour record.
 - **JP:** standard 代休 offsets only the base 1.0 portion; the premium portion (e.g. 0.25) is recorded as residual payable premium regardless of mode, unless HR configures 代替休暇 for the > 60 h/month portion under a labor-management agreement.
 
 ### 7. Monthly Closing with Pending Requests
@@ -72,19 +79,22 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
 - Closing a month is **blocked while any `PENDING` request touches that month**; the API returns the list of blocking requests for HR to resolve. No automatic rejection.
 - Scheduled auto-close follows the same rule and notifies HR when blocked.
 
-### 8. Monthly Leave Balance Digest (Email)
+### 8. Monthly Leave Balance Digest & Phase 3b/4 Sequencing
 
-- **`LeaveBalanceDigestJob`** runs on a configurable day/time each month (default: day 1, 09:00 in the department's timezone) and sends each employee, in their `locale`:
-  - remaining hours per leave type,
-  - balances expiring within a configurable window (default 90 days), including comp leave,
-  - JP: progress toward the 5-day annual leave obligation.
-- Delivered via `EmailNotificationChannel` with an in-app copy. Idempotent per `(user_id, period)` via a delivery log. Dev profile writes emails to log/file (no SMTP required).
-- Managers receive a team summary of members at risk of expiry or obligation shortfall.
+- **Phase 3b scope:** builds the **Leave Balance, 90-Day Expiring Comp-Leave, and JP 5-Day Obligation Progress query service and `/portal` dashboard API** so employees and HR have real-time visibility immediately.
+- **Phase 4 scope (`LeaveBalanceDigestJob`):** once the Phase 4 notification foundation (`ntf_*` tables and `EmailNotificationChannel`, see Decision 10) lands, the scheduled monthly digest job runs on day 1 at 09:00 per department timezone to deliver the summary via email and in-app notification (idempotent per `(user_id, period)`).
 
-### 9. Phase 3 ↔ Phase 4 Approval Contract
+### 9. Phase 3 ↔ Phase 4 Approval Contract & Unidirectional Dependency
 
-- Phase 3 defines domain events **`AttRequestApprovedEvent`** / **`AttRequestRejectedEvent`** / **`AttRequestRevokedEvent`** and implements all write-back logic (balance freeze/commit/release, daily-record recompute) against them.
-- Phase 3 ships a **test-only direct approval endpoint** (restricted to dev/test profiles) to exercise the full loop. Phase 4's workflow engine publishes the same events, replacing the stub without touching attendance logic.
+- To uphold the ArchUnit cycle-free module rule (`ModularArchitectureTest`), **all attendance request domain events reside in `io.github.skr416.atria.attendance.event`**: `AttRequestSubmittedEvent`, `AttRequestCancelledEvent`, `AttRequestApprovedEvent`, `AttRequestRejectedEvent`, and `AttRequestRevokedEvent`.
+- **Unidirectional module flow (`workflow` ➔ `attendance`):** `attendance` never depends on `workflow`. `attendance` publishes `AttRequestSubmittedEvent` on submission and `AttRequestCancelledEvent` on applicant withdrawal (so the workflow can close its instance), and listens for `Approved` / `Rejected` / `Revoked` events to execute balance freeze/commit/release (`att_leave_balance_tx`), `att_punch_log(CORRECTION)` insertion, and `att_daily_record` recomputation.
+- **`att_request` state machine** (`version` column for optimistic locking):
+  - `PENDING` → `APPROVED` | `REJECTED` (approval outcome events).
+  - `PENDING` → `CANCELLED` (applicant withdraws; frozen balance is released).
+  - `APPROVED` → `REVOKED` (post-approval revocation; balance restored and affected dates recomputed).
+  - `REJECTED`, `CANCELLED`, and `REVOKED` are terminal.
+  - **Guards** (enforced by a public `attendance` guard service at the submit / withdraw / revoke entry points; the Phase 4 workflow calls it before opening a revocation flow): any request touching a closed month is rejected with `ATT_MONTHLY_PERIOD_CLOSED` (2005) until HR reopens the month; an `OVERTIME` request with `COMP_LEAVE` cannot be revoked once its comp-leave bucket has used or pending minutes.
+- Phase 3b ships a **dev/test-only direct approval stub controller** inside `attendance` (restricted via `@Profile({"local", "pgtest"})`, the profiles used by local runs and the H2 / PostgreSQL test suites) that publishes those same events to exercise the full loop prior to Phase 4.
 
 ### 10. Workflow Engine Refinements (Phase 4)
 
@@ -115,7 +125,9 @@ A design review held while Phase 2 (frontend shell) was in progress surfaced gap
 - Per-employee shift rosters (extension point `WorkScheduleResolver` remains).
 - Automatic import of government-announced bridge days.
 - GPS-based punch restriction (an optional IP allowlist may be added in 3a).
-- CI pipeline and deployment topology.
+- Deployment topology (the CI pipeline was delivered in Phase 3a.5).
+- Intersecting approved overtime with actual punch times (Phase 3b counts approved minutes as-is).
+- Evaluating the JP late-night premium and the > 60 h/month overtime band (seeded only in Phase 3b).
 
 ## Consequences
 

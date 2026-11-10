@@ -2,7 +2,7 @@ export default {
   app: {
     name: 'Atria',
     subtitle: '企業差勤與動態簽核管理平台',
-    version: 'v0.4.0'
+    version: 'v0.4.5'
   },
   common: {
     search: '搜尋',
@@ -65,7 +65,10 @@ export default {
     'att:record:write': '調整考勤紀錄',
     'att:calendar:read': '檢視企業行事曆與規則',
     'att:calendar:write': '管理企業行事曆與規則',
-    'att:monthly-close:manage': '執行月結關帳與日結'
+    'att:monthly-close:manage': '執行月結關帳與日結',
+    'att:request:self': '個人差勤申請 (請假/加班/補打卡)',
+    'att:rule:read': '檢視假勤與加班規則',
+    'att:rule:write': '管理假勤與加班規則'
   },
   halls: {
     public: '外部公告大廳',
@@ -86,6 +89,7 @@ export default {
     auditLogs: '系統稽核日誌',
     attendanceGroup: '差勤與行事曆管理',
     workCalendar: '多地區企業行事曆',
+    leaveOvertimeRules: '假勤額度與加班規則',
     monthlyClose: '月結關帳管理'
   },
   auth: {
@@ -329,6 +333,127 @@ export default {
       reopenedAt: '重開時間',
       blockingAlertTitle: '無法執行月結關帳：尚有未簽核結案 (PENDING) 之申請單',
       noBlockingRequests: '該月份無未決申請單，可安全執行月結關帳'
+    },
+    requestTypes: {
+      LEAVE: '請假申請',
+      OVERTIME: '加班申請',
+      PUNCH_CORRECTION: '忘卡補登申請'
+    },
+    requestStatuses: {
+      PENDING: '待審核 (PENDING)',
+      APPROVED: '已核准 (APPROVED)',
+      REJECTED: '已駁回 (REJECTED)',
+      CANCELLED: '已抽單 (CANCELLED)',
+      REVOKED: '已撤銷 (REVOKED)'
+    },
+    overtimeCompTypes: {
+      PAY: '申請加班費 (PAY)',
+      COMP_LEAVE: '轉換補休額度 (COMP_LEAVE)'
+    },
+    compLeaveModes: {
+      HOURS_1_TO_1: '1:1 等比例時數折算',
+      RATE_MULTIPLIED: '依加班倍率加權折算 (CEILING 無條件進位)'
+    },
+    capActions: {
+      WARN: '超額預警提醒 (WARN)',
+      BLOCK: '強制攔截阻擋 (BLOCK)'
+    },
+    grantBases: {
+      ANNIVERSARY: '到職週年制 (ANNIVERSARY)',
+      CALENDAR_YEAR: '曆年制 (CALENDAR_YEAR)'
+    },
+    requests: {
+      sectionTitle: '差勤申請與假別額度中心',
+      newLeaveBtn: '申請請假',
+      newOvertimeBtn: '申請加班',
+      newCorrectionBtn: '忘卡補登',
+      balanceCardsTitle: '個人可用假別額度帳本 (FIFO 最早到期先扣)',
+      availableLabel: '可用餘額',
+      usedLabel: '已休時數',
+      pendingLabel: '審核凍結',
+      totalLabel: '核發總額',
+      validUntilLabel: '效期至 {date}',
+      expiringCompAlertTitle: '90 天內即將到期之加班補休提醒',
+      expiringCompItem: '加班日 {workDate}：剩餘 {mins} 分鐘（到期日 {expiresAt}，剩 {days} 天）',
+      jpObligationTitle: '日本勞基法 年次有給休暇 5 日取得義務進度 (年5日取得義務)',
+      jpObligationFulfilled: '已達成法定 5 日（2400 分鐘）取得義務',
+      jpObligationRemaining: '距離法定 5 日義務尚需取得 {mins} 分鐘（期限：{deadline}）',
+      myRequestsTitle: '個人差勤申請紀錄與簽核狀態',
+      requestType: '申請類別',
+      leaveType: '假別',
+      dateRange: '歸屬日期區間',
+      timeRange: '起訖時間',
+      requestedMinutes: '申請時數',
+      weightedMinutes: '加權折算時數',
+      compType: '補償方式',
+      reason: '申請事由',
+      attachmentPath: '證明附件路徑 / 編號',
+      warningMessages: '法定上限預警',
+      cancelBtn: '抽單撤回',
+      stubApproveBtn: '模擬核准',
+      stubRejectBtn: '模擬駁回',
+      stubRevokeBtn: '模擬撤銷',
+      revokeReasonPrompt: '請輸入核准後撤銷原因',
+      submitSuccess: '差勤申請單已送出！',
+      actionSuccess: '申請單狀態已更新！',
+      workDate: '歸屬出勤日',
+      startTime: '開始時間',
+      endTime: '結束時間',
+      correctedPunchTime: '補登打卡時間'
+    },
+    leaveOvertime: {
+      title: '假別額度、年資特休與台日加班規則管理',
+      subtitle: '管理假別最小單位、台日法定年資特休級距、1.34/1.67 加班分段倍率、上限規則與員工額度核發',
+      tabLeaveTypes: '假別與最小單位設定',
+      tabGrantRules: '台日年資特休級距規則',
+      tabOvertimeRates: '加班分段倍率規則',
+      tabOvertimeCaps: '加班時數上限檢核',
+      tabBalanceOps: '特休排程與手動給假作業',
+      addLeaveType: '新增假別',
+      editLeaveType: '編輯假別',
+      leaveCode: '假別代碼',
+      minUnitMinutes: '最小請假單位 (分)',
+      paid: '有薪假',
+      balanceTracked: '納入額度帳本控管',
+      attachmentRequired: '必附證明文件',
+      addGrantRule: '新增年資級距',
+      editGrantRule: '編輯年資級距',
+      grantBasis: '給假基準',
+      minTenureMonths: '最低年資 (月)',
+      maxTenureMonths: '最高年資 (月，留空表以上)',
+      grantDays: '給假天數',
+      grantMinutes: '給假分鐘數',
+      validMonths: '有效月數',
+      addRateRule: '新增加班倍率分段',
+      editRateRule: '編輯加班倍率分段',
+      fromMinute: '起始分鐘 (含)',
+      toMinute: '結束分鐘',
+      multiplier: '法定加權倍率',
+      nightPremium: '深夜加成參考段',
+      monthlyCumulative: '單月累計參考段',
+      defaultCompMode: '預設補休折算模式',
+      addCapRule: '新增加班上限規則',
+      editCapRule: '編輯加班上限規則',
+      ruleCode: '規則代碼',
+      periodMonths: '檢核週期 (月)',
+      maxMinutes: '上限分鐘數',
+      enforcementAction: '超額處置動作',
+      runAnnualGrantTitle: '執行到職週年制 (ANNIVERSARY) 特休自動核發',
+      runAnnualGrantDesc: '系統掃描全體在職員工之到職日 (hire_date)，依所屬部門行事曆 (TW/JP) 自動核發當年度特休額度桶（日本滿 10 日自動標記 2400 分鐘年 5 日義務）。',
+      asOfDateLabel: '基準日期',
+      runAnnualGrantBtn: '立即執行年度特休核發',
+      manualGrantTitle: 'HR 手動核發員工假別額度',
+      targetUserId: '目標員工 ID',
+      grantMinutesLabel: '核發分鐘數 (480分=1天)',
+      validFromLabel: '生效起日',
+      validUntilLabel: '到期迄日',
+      manualGrantBtn: '確認核發額度',
+      manualGrantDesc: '直接為員工建立一筆新的假別額度桶寫入 FIFO 額度帳本。',
+      monthsUnit: '個月',
+      daysUnit: '天',
+      grantedCountLabel: '本次新核發筆數',
+      skippedGrantedCountLabel: '已核發略過筆數',
+      skippedMissingHireDateLabel: '未設定到職日略過帳號：'
     }
   }
 }

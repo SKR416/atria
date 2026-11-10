@@ -1,9 +1,14 @@
 package io.github.skr416.atria.attendance.service;
 
+import io.github.skr416.atria.attendance.model.AttendanceRequest;
+import io.github.skr416.atria.attendance.model.AttendanceRequestStatus;
+import io.github.skr416.atria.attendance.model.AttendanceRequestType;
 import io.github.skr416.atria.attendance.model.AttendanceStatus;
 import io.github.skr416.atria.attendance.model.DailyAttendanceRecord;
 import io.github.skr416.atria.attendance.model.PunchLog;
 import io.github.skr416.atria.attendance.model.PunchRule;
+import io.github.skr416.atria.attendance.model.PunchSource;
+import io.github.skr416.atria.attendance.repository.AttendanceRequestRepository;
 import io.github.skr416.atria.attendance.repository.DailyAttendanceRecordRepository;
 import io.github.skr416.atria.attendance.repository.PunchLogRepository;
 import io.github.skr416.atria.attendance.repository.PunchRuleRepository;
@@ -20,6 +25,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Calculation engine for evaluating raw punch events into effective timestamps,
@@ -34,6 +41,8 @@ public class AttendanceRecordCalculator {
     private final PunchRuleRepository punchRuleRepository;
     private final PunchLogRepository punchLogRepository;
     private final DailyAttendanceRecordRepository dailyAttendanceRecordRepository;
+    private final AttendanceRequestRepository attendanceRequestRepository;
+    private final LeaveDurationCalculator leaveDurationCalculator;
 
     /**
      * Resolves the logical work date for a UTC punch timestamp based on timezone and daily cutoff hour.
@@ -169,7 +178,29 @@ public class AttendanceRecordCalculator {
         PunchRule rule = resolvePunchRule(schedule.calendarCode());
         ZoneId timezone = schedule.timezone() != null ? schedule.timezone() : ZoneId.of("Asia/Taipei");
 
-        List<PunchLog> logs = punchLogRepository.findByUserIdAndWorkDateOrderByRawPunchTimeAsc(userId, workDate);
+        List<AttendanceRequest> approvedRequests = attendanceRequestRepository
+                .findByUserIdAndStatusAndStartDateLessThanEqualAndEndDateGreaterThanEqualOrderByStartTimeAsc(
+                        userId,
+                        AttendanceRequestStatus.APPROVED,
+                        workDate,
+                        workDate
+                );
+
+        Set<Long> approvedCorrectionRequestIds = approvedRequests.stream()
+                .filter(r -> r.getRequestType() == AttendanceRequestType.PUNCH_CORRECTION)
+                .map(AttendanceRequest::getId)
+                .collect(Collectors.toSet());
+
+        List<PunchLog> rawLogs = punchLogRepository.findByUserIdAndWorkDateOrderByRawPunchTimeAsc(userId, workDate);
+        List<PunchLog> logs = rawLogs.stream()
+                .filter(log -> {
+                    if (log.getSource() == PunchSource.CORRECTION && log.getCorrectionRequestId() != null) {
+                        return approvedCorrectionRequestIds.contains(log.getCorrectionRequestId());
+                    }
+                    return true;
+                })
+                .toList();
+
         DailyAttendanceRecord record = dailyAttendanceRecordRepository
                 .findByUserIdAndWorkDate(userId, workDate)
                 .orElseGet(DailyAttendanceRecord::new);
@@ -182,6 +213,32 @@ public class AttendanceRecordCalculator {
         record.setScheduledStartTime(schedule.workStartTime());
         record.setScheduledEndTime(schedule.workEndTime());
         record.setPunchCount(logs.size());
+
+        List<AttendanceRequest> approvedLeaveRequests = approvedRequests.stream()
+                .filter(r -> r.getRequestType() == AttendanceRequestType.LEAVE)
+                .toList();
+
+        int totalLeaveMinutes = 0;
+        for (AttendanceRequest req : approvedLeaveRequests) {
+            int singleDayMins = leaveDurationCalculator.calculateSingleDayNetLeaveMinutes(
+                    userId,
+                    workDate,
+                    req.getStartTime(),
+                    req.getEndTime()
+            );
+            if (req.getStartDate().equals(req.getEndDate())) {
+                totalLeaveMinutes += Math.max(singleDayMins, req.getRequestedMinutes());
+            } else {
+                totalLeaveMinutes += singleDayMins;
+            }
+        }
+        record.setLeaveMinutes(totalLeaveMinutes);
+
+        int totalOvertimeMinutes = approvedRequests.stream()
+                .filter(r -> r.getRequestType() == AttendanceRequestType.OVERTIME)
+                .mapToInt(AttendanceRequest::getRequestedMinutes)
+                .sum();
+        record.setOvertimeMinutes(totalOvertimeMinutes);
 
         if (!logs.isEmpty()) {
             Instant firstRaw = logs.get(0).getRawPunchTime();
@@ -210,33 +267,72 @@ public class AttendanceRecordCalculator {
             int earlyLeaveMinutes = 0;
 
             if (schedule.isWorkingDay()) {
-                if (schedule.workStartTime() != null) {
-                    Instant scheduledStartInstant = workDate.atTime(schedule.workStartTime()).atZone(timezone).toInstant();
-                    Instant graceStartInstant = scheduledStartInstant.plusSeconds(rule.getLateGraceMinutes() * 60L);
+                Instant scheduledStartInstant = schedule.workStartTime() != null
+                        ? workDate.atTime(schedule.workStartTime()).atZone(timezone).toInstant()
+                        : null;
+                Instant scheduledEndInstant = schedule.workEndTime() != null
+                        ? workDate.atTime(schedule.workEndTime()).atZone(timezone).toInstant()
+                        : null;
+
+                LocalTime bStart = schedule.breakStartTime() != null ? schedule.breakStartTime() : LocalTime.of(12, 0);
+                LocalTime bEnd = schedule.breakEndTime() != null ? schedule.breakEndTime() : LocalTime.of(13, 0);
+                Instant breakStartInstant = workDate.atTime(bStart).atZone(timezone).toInstant();
+                Instant breakEndInstant = workDate.atTime(bEnd).atZone(timezone).toInstant();
+
+                Instant effectiveShiftStart = scheduledStartInstant;
+                Instant effectiveShiftEnd = scheduledEndInstant;
+
+                for (AttendanceRequest req : approvedLeaveRequests) {
+                    if (effectiveShiftStart != null) {
+                        if (!req.getStartTime().isAfter(effectiveShiftStart) && req.getEndTime().isAfter(effectiveShiftStart)) {
+                            effectiveShiftStart = req.getEndTime();
+                            if (effectiveShiftStart.equals(breakStartInstant)
+                                    || (!effectiveShiftStart.isBefore(breakStartInstant) && effectiveShiftStart.isBefore(breakEndInstant))) {
+                                effectiveShiftStart = breakEndInstant;
+                            }
+                        }
+                    }
+                }
+
+                List<AttendanceRequest> approvedLeaveDescEnd = new java.util.ArrayList<>(approvedLeaveRequests);
+                approvedLeaveDescEnd.sort(java.util.Comparator.comparing(AttendanceRequest::getEndTime).reversed());
+                for (AttendanceRequest req : approvedLeaveDescEnd) {
+                    if (effectiveShiftEnd != null) {
+                        if (!req.getEndTime().isBefore(effectiveShiftEnd) && req.getStartTime().isBefore(effectiveShiftEnd)) {
+                            effectiveShiftEnd = req.getStartTime();
+                            if (effectiveShiftEnd.equals(breakEndInstant)
+                                    || (!effectiveShiftEnd.isBefore(breakStartInstant) && effectiveShiftEnd.isBefore(breakEndInstant))) {
+                                effectiveShiftEnd = breakStartInstant;
+                            }
+                        }
+                    }
+                }
+
+                if (effectiveShiftStart != null) {
+                    Instant graceStartInstant = effectiveShiftStart.plusSeconds(rule.getLateGraceMinutes() * 60L);
                     Instant firstRawTruncated = firstRaw.truncatedTo(ChronoUnit.MINUTES);
                     if (firstRawTruncated.isAfter(graceStartInstant)) {
-                        lateMinutes = (int) Duration.between(scheduledStartInstant, effectiveIn).toMinutes();
+                        lateMinutes = (int) Duration.between(effectiveShiftStart, effectiveIn).toMinutes();
                         if (lateMinutes < 0) {
                             lateMinutes = 0;
                         }
                     }
                 }
-                if (lastRaw != null && schedule.workEndTime() != null) {
-                    Instant scheduledEndInstant = workDate.atTime(schedule.workEndTime()).atZone(timezone).toInstant();
-                    Instant graceEndInstant = scheduledEndInstant.minusSeconds(rule.getEarlyLeaveGraceMinutes() * 60L);
+                if (lastRaw != null && effectiveShiftEnd != null) {
+                    Instant graceEndInstant = effectiveShiftEnd.minusSeconds(rule.getEarlyLeaveGraceMinutes() * 60L);
                     if (effectiveOut.isBefore(graceEndInstant)) {
-                        earlyLeaveMinutes = (int) Duration.between(effectiveOut, scheduledEndInstant).toMinutes();
+                        earlyLeaveMinutes = (int) Duration.between(effectiveOut, effectiveShiftEnd).toMinutes();
                         if (earlyLeaveMinutes < 0) {
                             earlyLeaveMinutes = 0;
                         }
                     }
                 }
             }
-            record.setLateMinutes(lateMinutes);
-            record.setEarlyLeaveMinutes(earlyLeaveMinutes);
 
             AttendanceStatus status;
             if (record.getLeaveMinutes() >= 480) {
+                lateMinutes = 0;
+                earlyLeaveMinutes = 0;
                 status = AttendanceStatus.ON_LEAVE;
             } else if (!schedule.isWorkingDay()) {
                 status = AttendanceStatus.NORMAL;
@@ -255,6 +351,8 @@ public class AttendanceRecordCalculator {
                     status = AttendanceStatus.NORMAL;
                 }
             }
+            record.setLateMinutes(lateMinutes);
+            record.setEarlyLeaveMinutes(earlyLeaveMinutes);
             record.setStatus(status);
         } else {
             record.setFirstRawClockIn(null);
