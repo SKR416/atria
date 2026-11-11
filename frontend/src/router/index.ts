@@ -95,6 +95,12 @@ const routes: RouteRecordRaw[] = [
         name: 'admin-attendance-monthly-close',
         component: () => import('@/views/admin/attendance/MonthlyCloseView.vue'),
         meta: { requiresAuth: true, requiresAdmin: true, permission: 'att:monthly-close:manage' }
+      },
+      {
+        path: 'workflow/manage',
+        name: 'admin-workflow-manage',
+        component: () => import('@/views/admin/workflow/WorkflowManageView.vue'),
+        meta: { requiresAuth: true, requiresAdmin: true, permission: 'wf:template:read' }
       }
     ]
   },

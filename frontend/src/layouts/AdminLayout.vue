@@ -5,6 +5,7 @@ import { useRouter, RouterView, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/iam'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
+import NotificationBell from '@/components/common/NotificationBell.vue'
 import Button from 'primevue/button'
 import {
   Building2,
@@ -17,7 +18,8 @@ import {
   UserCheck,
   CalendarDays,
   Scale,
-  LockKeyhole
+  LockKeyhole,
+  GitPullRequestArrow
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -141,6 +143,20 @@ function navigateTo(path: string) {
             <span class="nav-label">{{ t('nav.monthlyClose') }}</span>
           </RouterLink>
         </nav>
+
+        <div class="nav-group-title" style="margin-top: 1.25rem">{{ t('nav.workflowGroup') }}</div>
+
+        <nav class="sidebar-menu">
+          <RouterLink
+            to="/admin/workflow/manage"
+            class="sidebar-nav-item"
+            active-class="sidebar-nav-item-active"
+            data-testid="nav-workflow-manage"
+          >
+            <GitPullRequestArrow :size="16" class="nav-icon" />
+            <span class="nav-label">{{ t('nav.workflowManage') }}</span>
+          </RouterLink>
+        </nav>
       </div>
 
       <div class="sidebar-footer">
@@ -183,6 +199,9 @@ function navigateTo(path: string) {
         </div>
 
         <div class="topbar-right">
+          <!-- In-App Notification Bell -->
+          <NotificationBell />
+
           <!-- Language Switcher -->
           <LanguageSwitcher />
 

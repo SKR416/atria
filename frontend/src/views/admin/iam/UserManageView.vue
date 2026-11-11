@@ -529,7 +529,7 @@ function handleDeleteUser(user: UserResponse) {
 </script>
 
 <template>
-  <div class="user-manage-view">
+  <div class="user-manage-view" data-testid="admin-user-manage-view">
     <!-- Page Header -->
     <div class="atria-page-header">
       <div>

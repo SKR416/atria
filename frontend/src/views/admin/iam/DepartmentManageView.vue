@@ -356,7 +356,7 @@ function asDeptNode(node: unknown): DepartmentTreeNodeResponse {
 </script>
 
 <template>
-  <div class="department-manage-view">
+  <div class="department-manage-view" data-testid="admin-department-manage-view">
     <div class="atria-page-header">
       <div>
         <h1 class="atria-page-title">{{ t('iam.dept.title') }}</h1>

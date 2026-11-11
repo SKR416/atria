@@ -2,9 +2,9 @@
 
 [English](./README.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja.md)
 
-> **Current Status:** `Phase 3b — Leave Ledger, Statutory Overtime & Approval Event Contract (Completed, v0.4.5-leave-overtime)`  
-> **Next Milestone:** `Phase 4 — Dynamic Forms, Multi-Level Approval Workflow & Notifications (v0.5.0-workflow)`  
-> Phases 0–3b are fully implemented and verified (32 backend tests including ArchUnit & DB immutability tests + frontend ESLint, TypeScript & Vite build). See [docs/ROADMAP.md](./docs/ROADMAP.md) and [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) for the full milestone schedule.
+> **Current Status:** `Phase 4 — Dynamic Form & Multi-Level Approval Workflow + In-App Notifications & Leave Digest (Completed, v0.5.0-workflow)`  
+> **Next Milestone:** `Phase 5 — Public Hall Corporate Announcements, Async AI Voice-to-Text (STT), & Final Release Polish (v1.0.0)`  
+> Phases 0–4 are fully implemented and verified (40 backend tests including 8 ArchUnit modular fitness rules & DB immutability tests + frontend ESLint 9, static UI/i18n check script verifying 485 keys, TypeScript & Vite build). See [docs/ROADMAP.md](./docs/ROADMAP.md) and [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) for the full milestone schedule.
 
 Atria is an enterprise platform that brings attendance tracking and approval workflows together. Employees clock in and submit leave, punch-correction, or overtime requests, managers and HR approve them through a multi-level workflow, and approved requests are written back to attendance records automatically. Built as a Spring Boot 3.3 + Vue 3.5 modular monolith with RBAC, department-subtree data scope, dynamic forms, and trilingual i18n (`zh-TW` / `en-US` / `ja-JP`).
 
@@ -20,7 +20,7 @@ Atria is an enterprise platform that brings attendance tracking and approval wor
 
 ---
 
-## Implemented Capabilities (Phase 0 – Phase 3b)
+## Implemented Capabilities (Phase 0 – Phase 4)
 
 Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents what is currently implemented and verified in the repository:
 
@@ -60,6 +60,15 @@ Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents wh
   - **Regional Overtime Rate/Cap Engine & Comp-Leave Conversion (`OvertimeRuleAndCalculatorService`, `CompLeaveGrantService`):** Evaluates cumulative-minute rate bands with `BigDecimal` + `RoundingMode.CEILING` to whole minutes, checks monthly/multi-month/yearly statutory caps (`WARN` / `BLOCK`), converts `COMP_LEAVE` (`HOURS_1_TO_1` or `RATE_MULTIPLIED`) into `att_comp_leave_grant` + linked `att_leave_balance` bucket, and settles expired comp-leave back to original overtime rate bands via `band_breakdown_json` (TW LSA Art. 32-1).
   - **Unidirectional Approval Event Contract & Daily Recomputation (`AttendanceRequestService`, `AttendanceRecordCalculator`, `DatabasePendingRequestChecker`, `AttRequestGuardImpl`, `AttendanceRequestStubController`):** Cycle-free events in `attendance.event`, shift lateness/early-leave threshold adjustment when approved morning/afternoon leave covers shift boundaries, immutable `att_punch_log(CORRECTION)` append on punch correction, real DB pending request check blocking monthly close (`2010`), comp-leave usage revocation guard (`2025`), and `@Profile({"local", "pgtest"})` dev/test approval stub.
   - **Frontend ESS Leave/Overtime Workspace & HR Rule Console (`PortalHomeView.vue`, `LeaveOvertimeManageView.vue`):** Leave balance FIFO cards, 90-day expiring comp-leave banner, JP 5-day obligation progress bar, Leave/Overtime/Punch Correction application dialogs, My Requests table with withdraw & dev stub actions, and 5-tab HR management console (`/admin/attendance/leave-overtime`).
+- **Phase 4 — Dynamic Form & Multi-Level Approval Workflow + In-App Notifications & Leave Digest (`v0.5.0-workflow`):**
+  - Flyway `V5__init_workflow_and_notification_schema.sql` (PostgreSQL 16 & H2 dialects): 9 new tables (`wf_form_template`, `wf_flow_definition`, `wf_flow_node`, `wf_flow_node_condition`, `wf_instance`, `wf_task_log`, `wf_deputy`, `ntf_notification`, `ntf_digest_log`) plus permissions `wf:instance:self`, `wf:template:read`, `wf:template:write`, `wf:instance:reassign`, `ntf:digest:trigger`.
+  - **Dynamic Form Schema & Immutable Versioning (`wf_form_template`, `wf_instance`):** JSON Schema field definitions (`TEXT`, `TEXTAREA`, `NUMBER`, `SELECT`, `DATE`), automatic version bumping on template schema updates (`v1` -> `v2`), and immutable `form_version` + `schema_snapshot_json` preserved on every submitted `wf_instance`.
+  - **SpEL-Free Structured Condition Multi-Level Approval Engine (`StructuredConditionEvaluator`, `ApproverResolverService`, `WorkflowEngineService`):** Pure Java evaluation of `wf_flow_node_condition` (`EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `IN`, same `logical_group` = AND, across groups = OR), department tree walk-up (`DIRECT_LEADER`, `PARENT_LEADER`, `SPECIFIC_ROLE`) with `HR_ADMIN` -> `SUPER_ADMIN` fallback, and `selfApprovalAutoSkip`.
+  - **Bidirectional Attendance Event Loop (`attendance.event.*`):** `AttRequestSubmittedEvent` / `AttRequestCancelledEvent` auto-create/cancel linked `wf_instance`; workflow approval/rejection/revocation publishes `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent` (with pre-revoke validation via `AttRequestGuard`).
+  - **Return-to-Draft (`差戻し`) & Field-by-Field Revision Diff (`diff_json`):** Supported on standalone dynamic forms (`target_type = 'DYNAMIC_FORM'`), blocked on attendance-linked requests (`3009` `WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST` to protect FIFO frozen leave buckets).
+  - **Deputy Delegation (`wf_deputy`) & HR Force Reassign (`REASSIGN`):** Date-bounded deputy rules with self-delegation (`3012`) and overlap (`3013`) guards, dual audit logging (`actor_user_id` + `delegator_user_id` in `wf_task_log`), and admin forced task reassignment.
+  - **In-App Notifications & Idempotent Monthly Leave Digest (`notification` module):** `NotificationBell.vue` in Portal & Admin topbars, dev email sink (`EmailNotificationChannel`), and `LeaveBalanceDigestJob` (`ntf_digest_log` with `UNIQUE (user_id, period_year_month)` idempotency).
+  - **Frontend Views & Verification Tools:** `NotificationBell.vue` (topbar bell & drawer), `PortalWorkflowPanel.vue` (mounted in `/portal`), `WorkflowManageView.vue` (`/admin/workflow/manage`), and zero-browser static UI/i18n gate `frontend/scripts/check-ui-i18n.mjs` verifying 485 trilingual keys across `zh-TW.ts`, `en-US.ts`, and `ja-JP.ts`.
 
 ---
 
@@ -69,7 +78,7 @@ Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents wh
 | :--- | :--- | :--- |
 | **Backend** | Java 21 LTS, Spring Boot 3.3.5 | Modular monolith core (`io.github.skr416.atria`) |
 | **Security & Crypto** | Spring Security 6, JWT (`jjwt`), BCrypt, `AES-256-GCM` | Stateless auth, DBA emergency recovery (`1003`), RBAC, `@DataScope` subtree filtering, and field-level encryption (`AesGcmStringConverter`) |
-| **Database** | PostgreSQL 16 (H2 for local zero-install demo), Flyway (`V1`–`V4`) | Relational core with native `JSONB` for trilingual fields & dynamic forms, plus partial unique indexes for soft delete |
+| **Database** | PostgreSQL 16 (H2 for local zero-install demo), Flyway (`V1`–`V5`) | Relational core with native `JSONB` for trilingual fields & dynamic forms, plus partial unique indexes for soft delete |
 | **Frontend** | Vue 3.5, Vite 6, TypeScript, PrimeVue 4, Pinia, Vue Router 4, Lucide Icons, ApexCharts | High-density B2B SPA with three shells (`/public`, `/portal`, `/admin`) and SCRM-compliant MIT dependencies ([ADR-0001](./docs/adr/ADR-0001-modular-monolith-and-tech-stack.md)) |
 | **i18n** | Spring `MessageSource`, `vue-i18n` | Trilingual support (`zh-TW`, `en-US`, `ja-JP`) across API, DB, and UI |
 | **API Contract** | Springdoc OpenAPI 3 | Swagger documentation and frontend TypeScript type alignment |
@@ -82,7 +91,7 @@ Per [ADR-0007](./docs/adr/ADR-0007-project-naming.md), this section documents wh
 atria/
 ├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
-│   ├── ROADMAP.md                # Milestone plan and Git tag schedule (Phase 0 to Phase 6)
+│   ├── ROADMAP.md                # Milestone plan and Git tag schedule (Phase 0 to Phase 5)
 │   ├── ARCHITECTURE.md           # Modular monolith layout and database schema overview
 │   ├── NEXT_STEPS.md             # Cross-session handover & active checklist
 │   └── adr/                      # Architecture Decision Records (ADR-0001 to ADR-0008)
@@ -93,20 +102,25 @@ atria/
 │       │   ├── common/           # ApiResponse, ErrorCode, AesGcmCipher, HmacSignatureVerifier, etc.
 │       │   ├── config/           # I18nConfig, OpenApiConfig, CorsConfig
 │       │   ├── iam/              # Auth, Users, Dept Tree, Roles, Permissions, @DataScope, @AuditLog
-│       │   └── attendance/       # TW/JP Calendar, Punch Log & Daily Record, Leave FIFO Ledger, Overtime/Comp-Leave, Events & Stub
+│       │   ├── attendance/       # TW/JP Calendar, Punch Log & Daily Record, Leave FIFO Ledger, Overtime/Comp-Leave, Events & Stub
+│       │   ├── workflow/         # Dynamic Forms, Multi-Level Approval Engine, Node Conditions, Instances, Deputies
+│       │   └── notification/     # In-App Notifications, Email Sink, Monthly Leave Balance Digest Job
 │       ├── main/resources/
-│       │   ├── db/migration/     # Flyway V1–V4 SQL migrations (postgresql/ & h2/)
+│       │   ├── db/migration/     # Flyway V1–V5 SQL migrations (postgresql/ & h2/)
 │       │   └── i18n/             # Trilingual message bundles (zh_TW, en_US, ja_JP)
-│       └── test/                 # IAM, Phase 3a/3b Attendance, Immutability & ArchUnit tests (32 tests)
+│       └── test/                 # IAM, Attendance, Workflow/Notification, Immutability & ArchUnit tests (40 tests)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
+    ├── scripts/                  # check-ui-i18n.mjs (485-key trilingual parity, Button label anti-stacking & data-testid gate)
     └── src/
-        ├── api/                  # Axios HTTP client (JWT refresh & 1003 guard) + IAM & Attendance APIs
-        ├── components/common/    # Trilingual LanguageSwitcher
+        ├── api/                  # Axios HTTP client (JWT refresh & 1003 guard) + IAM, Attendance & Workflow APIs
+        ├── components/
+        │   ├── common/           # Trilingual LanguageSwitcher & NotificationBell
+        │   └── portal/           # PortalWorkflowPanel (My Requests & Pending Approval Inbox)
         ├── i18n/                 # vue-i18n locales (zh-TW, en-US, ja-JP)
         ├── layouts/              # PublicLayout, PortalLayout, AdminLayout
         ├── router/               # Three-Hall route guards & role/password-change redirection
         ├── stores/               # Pinia auth store (in-memory access token & user profile)
-        └── views/                # Public, Portal (Clock, Calendar, Leave/OT Requests), Auth, and Admin (IAM + Attendance/Leave/OT) views
+        └── views/                # Public, Portal, Auth, and Admin (IAM, Attendance, Leave/OT & Workflow Manage) views
 ```
 
 ---
@@ -139,9 +153,8 @@ npm run dev
 | **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 shell (`atria-frontend`), three layouts (`/public`, `/portal`, `/admin`), IAM admin UI, `hire_date` (`V2`) | ✅ Completed |
 | **Phase 3a** | `v0.4.0-attendance-core` | Multi-region calendar (`TW`/`JP` templates), immutable `att_punch_log` + derived `att_daily_record`, bot punch, daily settlement, monthly close, `/portal` & `/admin` calendar UI | ✅ Completed |
 | **Phase 3b** | `v0.4.5-leave-overtime` | Leave types & seniority grant rules (`hire_date`), leave calculator & balance ledger, overtime rate/cap engine, comp-leave conversion, approval event contract + dev/test stub | ✅ Completed |
-| **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), structured-condition approval workflow (`wf_*`), approver fallback, deputy delegation (`wf_deputy`), notifications (`ntf_*`) & monthly digest | ⏳ Next |
-| **Phase 5** | `v0.6.0-dashboard-notice` | Manager attendance dashboard, anomaly filtering, payroll weighted-hour Excel/CSV export, webhook bot notifications, public (`/public`) & internal (`/portal`) announcements (`ann_*`) | ⏳ Planned |
-| **Phase 6** | `v0.7.0-ai-suite` | Embedded AI chat (SSE), workplace text transformation, and async audio-to-text transcription (`ai_stt_job` via standalone `whisper.cpp`) | ⏳ Planned |
+| **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), structured-condition approval workflow (`wf_*`), approver fallback, deputy delegation (`wf_deputy`), notifications (`ntf_*`) & monthly digest | ✅ Completed |
+| **Phase 5** | `v1.0.0` | Public Hall corporate announcements (`ann_*`), manager dashboard & payroll export, async AI voice-to-text (`ai_stt_job`), and final release polish | ⏳ Next |
 
 ---
 

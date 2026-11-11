@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter, RouterView, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/iam'
+import NotificationBell from '@/components/common/NotificationBell.vue'
 import LanguageSwitcher from '@/components/common/LanguageSwitcher.vue'
 import Button from 'primevue/button'
 import {
@@ -92,6 +93,9 @@ function navigateTo(path: string) {
               <LayoutDashboard :size="15" class="btn-icon" />
             </template>
           </Button>
+
+          <!-- Notification Bell -->
+          <NotificationBell />
 
           <!-- Language Switcher -->
           <LanguageSwitcher />

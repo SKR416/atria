@@ -92,7 +92,7 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="change-pw-wrapper">
+  <div class="change-pw-wrapper" data-testid="auth-change-password-view">
     <!-- Top toolbar for language & logout -->
     <header class="change-pw-topbar">
       <div class="topbar-brand">

@@ -302,7 +302,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="role-manage-page">
+  <div class="role-manage-page" data-testid="admin-role-manage-view">
     <div class="atria-page-header">
       <div>
         <h1 class="atria-page-title">{{ t('iam.role.title') }}</h1>

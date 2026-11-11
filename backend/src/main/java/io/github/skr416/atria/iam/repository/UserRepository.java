@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -27,4 +28,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     @Query("select count(u) from User u")
     long countActive();
+
+    @Query("select distinct u from User u join u.roles r where r.code = :roleCode and u.enabled = true order by u.id asc")
+    List<User> findActiveUsersByRoleCode(String roleCode);
 }

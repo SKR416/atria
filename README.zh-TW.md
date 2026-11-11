@@ -2,9 +2,9 @@
 
 [English](./README.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja.md)
 
-> **目前開發進度：** `Phase 3b — 假別額度帳本、台日法定加班與簽核事件契約（已完成，v0.4.5-leave-overtime）`  
-> **下一階段：** `Phase 4 — 動態表單、多層級簽核流程與通知中心（v0.5.0-workflow）`  
-> 目前已完成 Phase 0–3b 實作與驗證（後端 32 項測試含 ArchUnit 與 DB 防竄改測試 + 前端 ESLint、TypeScript 與 Vite 建置通過）。完整開發時程與交接清單請參閱 [docs/ROADMAP.md](./docs/ROADMAP.md) 與 [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)。
+> **目前開發進度：** `Phase 4 — 動態表單、多層級簽核流程、站內通知與每月假勤摘要（已完成，v0.5.0-workflow）`  
+> **下一階段：** `Phase 5 — 公開大廳企業公告、非同步 AI 語音轉文字 (STT) 與最終發布收尾（v1.0.0）`  
+> 目前已完成 Phase 0–4 實作與驗證（後端 40 項測試含 8 條 ArchUnit 模組架構規則與 DB 防竄改測試 + 前端 ESLint 9、485 鍵靜態 UI/i18n 守門驗收、TypeScript 與 Vite 建置通過）。完整開發時程與交接清單請參閱 [docs/ROADMAP.md](./docs/ROADMAP.md) 與 [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md)。
 
 Atria 是一套整合差勤管理與申請審批流程的企業級平台。員工可打卡、提出請假、補打卡與加班申請，由直屬主管與 HR 透過多層級流程審批，核准後自動回寫差勤紀錄與假別額度。後端採 Spring Boot 3.3，前端採 Vue 3.5，為模組化單體架構，具備 RBAC、部門子樹資料範圍隔離 (`@DataScope`)、動態表單與三語系（繁中／英／日）支援。
 
@@ -22,7 +22,7 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 
 ---
 
-## 目前已實作功能 (Phase 0 – Phase 3b)
+## 目前已實作功能 (Phase 0 – Phase 4)
 
 依 [ADR-0007](./docs/adr/zh-TW/ADR-0007-project-naming.md) 規範，本節如實記載目前已於儲存庫落地並通過驗證的功能：
 
@@ -62,6 +62,15 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
   - **台日加班倍率／上限引擎與補休折算 (`OvertimeRuleAndCalculatorService`, `CompLeaveGrantService`)：** 以 `BigDecimal` + `RoundingMode.CEILING` 無條件進位至整數分鐘計算累計級距加權時數、檢查單月／跨月／年度法定上限（`WARN` / `BLOCK`）、支援加班費（`PAY`）與補休（`COMP_LEAVE`：`HOURS_1_TO_1` 或 `RATE_MULTIPLIED`）轉換並同步建立關聯 `att_leave_balance` 額度桶，且支援依 `band_breakdown_json` 執行台灣勞基法第 32-1 條補休到期未休折算還原。
   - **單向簽核領域事件契約與考勤重算整合 (`AttendanceRequestService`, `AttendanceRecordCalculator`, `DatabasePendingRequestChecker`, `AttRequestGuardImpl`, `AttendanceRequestStubController`)：** 於 `attendance.event` 定義無循環依賴之領域事件、核准上午／下午請假時自動順延遲到或提前早退起算基準、核准補打卡時寫入 `att_punch_log(CORRECTION)` 不可變紀錄並重算當日考勤、真實查詢未決 `PENDING` 單據阻擋月結關帳（`2010`）、防止已動用補休之加班單遭撤銷（`2025`），並提供 `@Profile({"local", "pgtest"})` 開發測試簽核 Stub。
   - **前端員工請假／加班工作台與人資規則後台 (`PortalHomeView.vue`, `LeaveOvertimeManageView.vue`)：** 員工端 FIFO 假別額度卡片、90 天內即將到期補休提醒、日本年休 5 日義務進度條、請假／加班／補打卡申請彈窗、個人申請紀錄與抽單／測試簽核按鈕，以及人資端 5 分頁假勤與加班規則管理畫面 (`/admin/attendance/leave-overtime`)。
+- **Phase 4 — 動態表單、多層級簽核流程與通知中心 (`v0.5.0-workflow`)：**
+  - **Flyway `V5__init_workflow_and_notification_schema.sql`（PostgreSQL 16 與 H2 雙版本）：** 9 張全新資料表（`wf_form_template`、`wf_flow_definition`、`wf_flow_node`、`wf_flow_node_condition`、`wf_instance`、`wf_task_log`、`wf_deputy`、`ntf_notification`、`ntf_digest_log`）與專屬權限（`wf:instance:self`、`wf:template:read`、`wf:template:write`、`wf:instance:reassign`、`ntf:digest:trigger`）。
+  - **動態表單 JSON Schema 與不可變版本機制 (`wf_form_template`, `wf_instance`)：** 支援 `TEXT`、`TEXTAREA`、`NUMBER`、`SELECT`、`DATE` 欄位型態，模板結構變更時自動升版（`v1` -> `v2`），且每筆送出的簽核單 (`wf_instance`) 永久凍結儲存提交當下的 `form_version` 與 `schema_snapshot_json`。
+  - **純 Java 結構化條件多層級簽核引擎 (`StructuredConditionEvaluator`, `ApproverResolverService`, `WorkflowEngineService`)：** 零 SpEL 表達式注入風險，純 Java 運算 `wf_flow_node_condition`（`EQ`、`NE`、`GT`、`GTE`、`LT`、`LTE`、`IN`，同組 `logical_group` 為 AND，跨組為 OR），沿部門樹逐層向上解析主管（`DIRECT_LEADER`、`PARENT_LEADER`、`SPECIFIC_ROLE`）並具備 `HR_ADMIN` -> `SUPER_ADMIN` 安全兜底與申請人同簽核人自動跳過（`selfApprovalAutoSkip`）。
+  - **差勤雙向領域事件迴路 (`attendance.event.*`)：** 監聽 `AttRequestSubmittedEvent` / `AttRequestCancelledEvent` 自動建立或取消連動 `wf_instance`；簽核終態（核准／駁回／撤銷）發布 `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent`，並透過 `AttRequestGuard` 嚴密保護已核准單據之撤銷前置檢驗。
+  - **退回修改 (`差戻し`) 與欄位修訂對比 (`diff_json`)：** 獨立動態表單 (`target_type = 'DYNAMIC_FORM'`) 支援退回草稿修改與版本對比；差勤單據嚴禁退回修改（拋出 `3009` `WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST`），捍衛 FIFO 凍結額度一致性。
+  - **職務代理人授權 (`wf_deputy`) 與 HR 強制改派 (`REASSIGN`)：** 支援指定日期區間之代理規則，內建禁止代理自己 (`3012`) 與重疊區間防護 (`3013`)；簽核歷程 `wf_task_log` 完整記錄雙軌稽核（實際代理操作者 `actor_user_id` 與被代理主管 `delegator_user_id`），並支援管理員強制改派任務。
+  - **站內通知中心與每月假勤摘要冪等排程 (`notification` 模組)：** 頂部導航即時未讀通知鈴鐺 (`NotificationBell.vue`)、開發環境日誌模擬郵件通道 (`EmailNotificationChannel`)，以及每月假勤額度與即將到期提醒排程 `LeaveBalanceDigestJob`（以 `ntf_digest_log` 具備 `UNIQUE (user_id, period_year_month)` 確保排程不重複寄送）。
+  - **前端畫面與品質驗收守門員：** 實作 `NotificationBell.vue`（站內通知鈴鐺抽屜）、`/portal` 員工簽核中心面板 (`PortalWorkflowPanel.vue`)、`/admin/workflow/manage` 流程與表單管理後台 (`WorkflowManageView.vue`)，以及無瀏覽器靜態 UI/i18n 守門腳本 `frontend/scripts/check-ui-i18n.mjs`。
 
 ---
 
@@ -71,7 +80,7 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 | :--- | :--- | :--- |
 | **後端核心** | Java 21 LTS, Spring Boot 3.3.5 | 模組化單體架構 (`io.github.skr416.atria`) |
 | **安全與加解密** | Spring Security 6, JWT (`jjwt`), BCrypt, `AES-256-GCM` | 無狀態認證、DBA 明文救急強制改密 (`1003`)、RBAC、`@DataScope` 部門樹資料隔離、欄位級加密 (`AesGcmStringConverter`) |
-| **資料庫** | PostgreSQL 16 (本地免安裝支援 H2), Flyway (`V1`–`V4`) | 關聯式核心搭配原生 `JSONB` 儲存多語系與動態表單，並以部分唯一索引支援軟刪除 |
+| **資料庫** | PostgreSQL 16 (本地免安裝支援 H2), Flyway (`V1`–`V5`) | 關聯式核心搭配原生 `JSONB` 儲存多語系與動態表單，並以部分唯一索引支援軟刪除 |
 | **前端核心** | Vue 3.5, Vite 6, TypeScript, PrimeVue 4, Pinia, Vue Router 4, Lucide Icons, ApexCharts | 高資訊密度日系 B2B 單頁應用，內建三大廳版面 (`/public`, `/portal`, `/admin`)，全線採用符合供應鏈合規 (SCRM) 之 MIT 元件（[ADR-0001](./docs/adr/zh-TW/ADR-0001-modular-monolith-and-tech-stack.md)） |
 | **多語系 (i18n)** | Spring `MessageSource`, `vue-i18n` | API、資料庫與前端 UI 全面支援繁體中文 (`zh-TW`)、英文 (`en-US`)、日文 (`ja-JP`) |
 | **API 契約** | Springdoc OpenAPI 3 | Swagger 文件產生與前端 TypeScript 型別對齊 |
@@ -84,7 +93,7 @@ Atria 是一套整合差勤管理與申請審批流程的企業級平台。員�
 atria/
 ├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
-│   ├── ROADMAP.md                # 開發階段里程碑與 Git Tag 規劃 (Phase 0 至 Phase 6)
+│   ├── ROADMAP.md                # 開發階段里程碑與 Git Tag 規劃 (Phase 0 至 Phase 5)
 │   ├── ARCHITECTURE.md           # 模組化單體套件結構與資料表前綴總覽
 │   ├── NEXT_STEPS.md             # 跨 Session 開發交接與待辦清單
 │   └── adr/                      # 英文架構決策紀錄正本 (ADR-0001 至 ADR-0008)
@@ -95,20 +104,25 @@ atria/
 │       │   ├── common/           # ApiResponse, ErrorCode, AesGcmCipher, HmacSignatureVerifier 等
 │       │   ├── config/           # I18nConfig, OpenApiConfig, CorsConfig
 │       │   ├── iam/              # 認證、使用者、部門樹、角色權限、@DataScope、@AuditLog
-│       │   └── attendance/       # 台日行事曆、不可變打卡日誌與當日考勤、FIFO 假別帳本、加班與補休、領域事件與 Stub
+│       │   ├── attendance/       # 台日行事曆、不可變打卡日誌與當日考勤、FIFO 假別帳本、加班與補休、領域事件與 Stub
+│       │   ├── workflow/         # 動態表單、結構化條件多層級簽核引擎、實例狀態機、職務代理人
+│       │   └── notification/     # 站內通知、郵件日誌通道、每月假勤額度摘要排程
 │       ├── main/resources/
-│       │   ├── db/migration/     # Flyway V1–V4 SQL 遷移腳本 (postgresql/ 與 h2/)
+│       │   ├── db/migration/     # Flyway V1–V5 SQL 遷移腳本 (postgresql/ 與 h2/)
 │       │   └── i18n/             # 三語系訊息檔 (zh_TW, en_US, ja_JP)
-│       └── test/                 # IAM、Phase 3a/3b Attendance、防竄改與 ArchUnit 架構測試 (32 項)
+│       └── test/                 # IAM、差勤、簽核/通知、防竄改與 ArchUnit 架構測試 (40 項)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
+    ├── scripts/                  # check-ui-i18n.mjs (485 鍵三語對稱、Button label 防疊加與 data-testid 靜態守門員)
     └── src/
-        ├── api/                  # Axios HTTP 客戶端 (JWT 自動換證與 1003 攔截) 與 IAM / Attendance API
-        ├── components/common/    # 三語切換器 LanguageSwitcher
+        ├── api/                  # Axios HTTP 客戶端 (JWT 自動換證與 1003 攔截) 與 IAM、Attendance、Workflow API
+        ├── components/
+        │   ├── common/           # 三語切換器 LanguageSwitcher 與站內通知鈴鐺 NotificationBell
+        │   └── portal/           # PortalWorkflowPanel 員工個人申請與待簽收件匣面板
         ├── i18n/                 # vue-i18n 語系字典 (zh-TW, en-US, ja-JP)
         ├── layouts/              # PublicLayout, PortalLayout, AdminLayout 三大廳殼層
         ├── router/               # 三大廳路由守衛與強制改密導向
         ├── stores/               # Pinia auth store (記憶體 Access Token 與個人資料)
-        └── views/                # Public, Portal (打卡、月曆、請假/加班/補卡), Auth 與 Admin (IAM + 差勤與假勤規則) 頁面
+        └── views/                # Public, Portal, Auth 與 Admin (IAM、差勤假勤規則與簽核管理) 頁面
 ```
 
 ---
@@ -141,9 +155,8 @@ npm run dev
 | **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 前端骨架 (`atria-frontend`)、三大廳版面、IAM 帳號與權限管理畫面、`hire_date` (`V2`) | ✅ 已完成 |
 | **Phase 3a** | `v0.4.0-attendance-core` | 多地區行事曆 (`TW`/`JP` 模板)、不可變打卡日誌 (`att_punch_log`) + 衍生日結表 (`att_daily_record`)、Bot 代打卡、每日結算、月結鎖定、`/portal` 與 `/admin` 行事曆介面 | ✅ 已完成 |
 | **Phase 3b** | `v0.4.5-leave-overtime` | 假別與年資特休給假規則 (`hire_date`)、請假時數計算器與額度帳本、台日加班倍率與上限引擎、補休折算、簽核事件契約 + 測試 Stub | ✅ 已完成 |
-| **Phase 4** | `v0.5.0-workflow` | 動態表單模板 (`wf_form_template`)、結構化條件多層級審批流程 (`wf_*`)、簽核人備援、職務代理人 (`wf_deputy`)、通知中心 (`ntf_*`) 與每月餘額摘要信 | ⏳ 下一階段 |
-| **Phase 5** | `v0.6.0-dashboard-notice` | 主管首頁出缺勤即時看板、異常紀錄篩選、計薪加權時數 Excel/CSV 匯出、Webhook Bot 通知、公開 (`/public`) 與內部 (`/portal`) 公告系統 (`ann_*`) | ⏳ 規劃中 |
-| **Phase 6** | `v0.7.0-ai-suite` | 嵌入式 AI 對話 (SSE Chat)、職場文字轉換、非同步音檔轉文字記錄 (`ai_stt_job` 獨立 `whisper.cpp` 服務) | ⏳ 規劃中 |
+| **Phase 4** | `v0.5.0-workflow` | 動態表單模板 (`wf_form_template`)、結構化條件多層級審批流程 (`wf_*`)、簽核人備援、職務代理人 (`wf_deputy`)、通知中心 (`ntf_*`) 與每月餘額摘要信 | ✅ 已完成 |
+| **Phase 5** | `v1.0.0` | 公開大廳企業公告 (`ann_*`)、主管差勤看板與計薪加權匯出、非同步 AI 語音轉文字 (`ai_stt_job`) 與最終發布收尾 | ⏳ 進行中 |
 
 ---
 

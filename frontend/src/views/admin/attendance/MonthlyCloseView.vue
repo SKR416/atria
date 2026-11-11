@@ -286,7 +286,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="monthly-close-view">
+  <div class="monthly-close-view" data-testid="admin-monthly-close-view">
     <!-- Top Header -->
     <div class="atria-page-header">
       <div>

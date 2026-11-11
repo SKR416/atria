@@ -70,7 +70,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-wrapper">
+  <div class="login-wrapper" data-testid="auth-login-view">
     <!-- Top toolbar for language & back link -->
     <header class="login-topbar">
       <RouterLink to="/public" class="back-link">

@@ -71,7 +71,7 @@ function handleActionClick() {
 </script>
 
 <template>
-  <div class="public-home">
+  <div class="public-home" data-testid="public-home-view">
     <div class="public-container">
       <!-- Top Split Hero Banner -->
       <section class="hero-split-card">

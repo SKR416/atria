@@ -90,7 +90,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="audit-log-page">
+  <div class="audit-log-page" data-testid="admin-audit-log-view">
     <div class="atria-page-header">
       <div>
         <h1 class="atria-page-title">{{ t('iam.audit.title') }}</h1>

@@ -53,6 +53,10 @@ public class ApiResponse<T> {
         return ok(data, "OK");
     }
 
+    public static <T> ApiResponse<T> ok() {
+        return ok(null);
+    }
+
     public static <T> ApiResponse<T> error(int code, String localizedMessage) {
         return ApiResponse.<T>builder()
                 .code(code)

@@ -8,7 +8,8 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc -b --noEmit",
-    "lint": "eslint src --max-warnings 0"
+    "check:ui-i18n": "node scripts/check-ui-i18n.mjs",
+    "lint": "eslint src --max-warnings 0 && node scripts/check-ui-i18n.mjs"
   },
   "dependencies": {
     "@primeuix/themes": "^1.0.4",

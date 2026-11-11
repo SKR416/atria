@@ -92,4 +92,38 @@ class ModularArchitectureTest {
             SlicesRuleDefinition.slices().matching("io.github.skr416.atria.(*)..")
                     .should().beFreeOfCycles()
                     .because("Top-level modules (common, iam, attendance, workflow, etc.) must not have cyclic dependencies");
+
+    /**
+     * Rule 6: Unidirectional business module pyramid (workflow -> notification -> attendance -> iam -> common).
+     * Attendance must not depend on notification/workflow; Notification must not depend on workflow.
+     */
+    @ArchTest
+    static final ArchRule attendanceAndNotificationShouldRespectPyramidHierarchy =
+            noClasses().that().resideInAPackage("io.github.skr416.atria.attendance..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "io.github.skr416.atria.workflow..",
+                            "io.github.skr416.atria.notification..",
+                            "io.github.skr416.atria.announcement..",
+                            "io.github.skr416.atria.ai.."
+                    )
+                    .because("Attendance (Level 2) must not depend on upper-layer modules (Notification Level 3, Workflow Level 4)");
+
+    @ArchTest
+    static final ArchRule notificationShouldNotDependOnWorkflowOrUpperModules =
+            noClasses().that().resideInAPackage("io.github.skr416.atria.notification..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "io.github.skr416.atria.workflow..",
+                            "io.github.skr416.atria.announcement..",
+                            "io.github.skr416.atria.ai.."
+                    )
+                    .because("Notification (Level 3) must not depend on upper-layer modules (Workflow Level 4)");
+
+    /**
+     * Rule 7: ADR-0008 Decision 10 — Workflow condition evaluation must use structured Java evaluation, never SpEL.
+     */
+    @ArchTest
+    static final ArchRule workflowModuleMustNotUseSpelExpressions =
+            noClasses().that().resideInAPackage("io.github.skr416.atria.workflow..")
+                    .should().dependOnClassesThat().resideInAPackage("org.springframework.expression..")
+                    .because("Workflow conditions must be evaluated via structured Java operators, never SpEL (ADR-0008 Decision 10)");
 }

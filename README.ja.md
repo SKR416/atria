@@ -2,9 +2,9 @@
 
 [English](./README.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja.md)
 
-> **現在の開発ステータス：** `Phase 3b — 休暇台帳・法定残業エンジン・承認イベント契約（完了, v0.4.5-leave-overtime）`  
-> **次フェーズ：** `Phase 4 — 動的フォーム・多段階承認ワークフロー・通知基盤（v0.5.0-workflow）`  
-> Phase 0〜3b の実装および検証（バックエンドテスト32件［ArchUnit・DB改ざん防止テスト含む］＋フロントエンド ESLint / TypeScript / Vite ビルド）が完了しています。全体計画と引き継ぎ事項は [docs/ROADMAP.md](./docs/ROADMAP.md) および [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) を参照してください。
+> **現在の開発ステータス：** `Phase 4 — 動的フォーム・多段階承認ワークフロー・アプリ内通知＆月次休暇ダイジェスト（完了, v0.5.0-workflow）`  
+> **次フェーズ：** `Phase 5 — 公開サイト企業お知らせ・非同期 AI 音声テキスト変換 (STT)・最終リリース整備（v1.0.0）`  
+> Phase 0〜4 の実装および検証（バックエンドテスト40件［ArchUnit 8ルール・DB改ざん防止テスト含む］＋フロントエンド ESLint 9・485キー検証静的 UI/i18n ゲート・TypeScript・Vite ビルド）が完了しています。全体計画と引き継ぎ事項は [docs/ROADMAP.md](./docs/ROADMAP.md) および [docs/NEXT_STEPS.md](./docs/NEXT_STEPS.md) を参照してください。
 
 Atria は、勤怠管理と申請・承認（ワークフロー）を一つにまとめたエンタープライズ向けプラットフォームです。従業員の出退勤打刻や休暇・打刻修正・残業の申請から、上長・HR による多段階承認、勤怠記録および休暇残高への自動反映までを一貫して扱います。Spring Boot 3.3 と Vue 3.5 によるモジュラーモノリス構成で、RBAC、部門サブツリーに基づくデータスコープ制御（`@DataScope`）、動的フォーム、3言語（繁体字中国語・英語・日本語）対応を備えています。
 
@@ -22,7 +22,7 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
 
 ---
 
-## 実装済み機能 (Phase 0 – Phase 3b)
+## 実装済み機能 (Phase 0 – Phase 4)
 
 [ADR-0007](./docs/adr/ADR-0007-project-naming.md) の規定に基づき、現在リポジトリに実装・検証済みの機能を記載します：
 
@@ -62,6 +62,15 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
   - **日台残業割増率・上限エンジン＆代休換算 (`OvertimeRuleAndCalculatorService`, `CompLeaveGrantService`)：** `BigDecimal` + `RoundingMode.CEILING` による整数分切り上げ計算、月次・複数月・年次上限チェック（`WARN` / `BLOCK`）、残業手当（`PAY`）と代休・補休（`COMP_LEAVE`：`HOURS_1_TO_1` または `RATE_MULTIPLIED`）の選択および連動 `att_leave_balance` バケット生成、`band_breakdown_json` を用いた台湾労基法第32-1条の期限切れ未消化補休の割増賃金換算。
   - **単方向承認イベント契約＆日次勤怠再計算 (`AttendanceRequestService`, `AttendanceRecordCalculator`, `DatabasePendingRequestChecker`, `AttRequestGuardImpl`, `AttendanceRequestStubController`)：** `attendance.event` パッケージによる循環依存のないイベント設計、午前／午後半休承認時の遅刻・早退判定基準時刻のシフト、打刻修正承認時の `att_punch_log(CORRECTION)` 追記および日次集計再計算、未決 `PENDING` 申請による月次締めブロック（`2010`）、使用済み代休の残業承認取消ガード（`2025`）、および開発・テスト用承認スタブ（`@Profile({"local", "pgtest"})`）。
   - **従業員ポータル申請UI＆HR休暇・残業ルール管理画面 (`PortalHomeView.vue`, `LeaveOvertimeManageView.vue`)：** FIFO休暇残高カード、90日以内期限切れ代休アラート、日本年5日有給取得義務プログレスバー、休暇・残業・打刻修正申請モーダル、申請一覧（取下げ＆テスト承認スタブ操作付）、および5タブ構成のHR管理コンソール（`/admin/attendance/leave-overtime`）。
+- **Phase 4 — 動的フォーム・多段階承認ワークフロー・通知基盤 (`v0.5.0-workflow`)：**
+  - **Flyway `V5__init_workflow_and_notification_schema.sql`（PostgreSQL 16 & H2 対応）：** 9つの新規テーブル（`wf_form_template`、`wf_flow_definition`、`wf_flow_node`、`wf_flow_node_condition`、`wf_instance`、`wf_task_log`、`wf_deputy`、`ntf_notification`、`ntf_digest_log`）および専用権限（`wf:instance:self`、`wf:template:read`、`wf:template:write`、`wf:instance:reassign`、`ntf:digest:trigger`）。
+  - **動的フォーム JSON Schema と不変バージョン管理 (`wf_form_template`, `wf_instance`)：** `TEXT`、`TEXTAREA`、`NUMBER`、`SELECT`、`DATE` フィールド定義に対応し、テンプレート更新時に自動リビジョンアップ（`v1` -> `v2`）。申請インスタンス (`wf_instance`) ごとに提出時点の `form_version` と `schema_snapshot_json` を不変スナップショットとして永続化。
+  - **SpEL 不使用・構造化条件多段階承認エンジン (`StructuredConditionEvaluator`, `ApproverResolverService`, `WorkflowEngineService`)：** SpEL 注入脆弱性を排除した純 Java による `wf_flow_node_condition` 評価（`EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `IN`、同一 `logical_group` 内は AND、グループ間は OR）。部門ツリーを遡る承認者解決（`DIRECT_LEADER`, `PARENT_LEADER`, `SPECIFIC_ROLE`）、`HR_ADMIN` -> `SUPER_ADMIN` フォールバック、申請者本人の自動スキップ（`selfApprovalAutoSkip`）を完備。
+  - **勤怠双方向ドメインイベントループ (`attendance.event.*`)：** `AttRequestSubmittedEvent` / `AttRequestCancelledEvent` によるワークフロー連動起票・取消、承認終態での `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent` 発行および `AttRequestGuard` による取消前検証。
+  - **差戻し修正 (`差戻し`) とフィールド差分追跡 (`diff_json`)：** 汎用動的フォーム (`target_type = 'DYNAMIC_FORM'`) での差戻し・再申請・差分比較をサポート。勤怠連動申請では FIFO 凍結バケット整合性を保護するため差戻しを禁止（`3009` `WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST`）。
+  - **代理承認設定 (`wf_deputy`) と HR 強制再割当 (`REASSIGN`)：** 期間指定代理ルール、自己代理防止 (`3012`)、期間重複防止 (`3013`) ガード。監査ログ `wf_task_log` における代理実行者 (`actor_user_id`) と被代理者 (`delegator_user_id`) の2軸記録、管理者による強制再割当。
+  - **アプリ内通知センターと月次休暇ダイジェストバッチ (`notification` モジュール)：** ヘッダー常駐型未読通知ベル (`NotificationBell.vue`)、開発環境向けログ記録メール通知 (`EmailNotificationChannel`)、および `ntf_digest_log` の `UNIQUE (user_id, period_year_month)` 制約による月次休暇残高ダイジェストの冪等配信 (`LeaveBalanceDigestJob`)。
+  - **フロントエンド UI コンポーネントおよび品質検証ゲート：** `NotificationBell.vue`（通知ドロワー）、`/portal` 従業員承認ワークスペース (`PortalWorkflowPanel.vue`)、`/admin/workflow/manage` ワークフロールール・フォーム管理画面 (`WorkflowManageView.vue`)、および3言語 485キーの完全一致・PrimeVue `<Button>` テキスト重複防止・View `data-testid` を静的検証する `frontend/scripts/check-ui-i18n.mjs`。
 
 ---
 
@@ -71,7 +80,7 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
 | :--- | :--- | :--- |
 | **バックエンド** | Java 21 LTS, Spring Boot 3.3.5 | モジュラーモノリス基盤 (`io.github.skr416.atria`) |
 | **セキュリティ・暗号化** | Spring Security 6, JWT (`jjwt`), BCrypt, `AES-256-GCM` | ステートレス認証、DBA緊急パスワード復旧 (`1003`)、RBAC、`@DataScope` 部門スコープ制御、フィールド暗号化 (`AesGcmStringConverter`) |
-| **データベース** | PostgreSQL 16 (ローカルデモ用 H2 対応), Flyway (`V1`–`V4`) | リレーショナル管理＋多言語・動的フォーム用 `JSONB`、論理削除用部分ユニークインデックス |
+| **データベース** | PostgreSQL 16 (ローカルデモ用 H2 対応), Flyway (`V1`–`V5`) | リレーショナル管理＋多言語・動的フォーム用 `JSONB`、論理削除用部分ユニークインデックス |
 | **フロントエンド** | Vue 3.5, Vite 6, TypeScript, PrimeVue 4, Pinia, Vue Router 4, Lucide Icons, ApexCharts | 高情報密度な日系B2B UI、3つのレイアウト（`/public`, `/portal`, `/admin`）、サプライチェーン安全性（SCRM）に準拠した MIT コンポーネント群（[ADR-0001](./docs/adr/ADR-0001-modular-monolith-and-tech-stack.md)） |
 | **多言語対応 (i18n)** | Spring `MessageSource`, `vue-i18n` | 繁体字中国語 (`zh-TW`)・英語 (`en-US`)・日本語 (`ja-JP`) の3言語対応 |
 | **API 仕様** | Springdoc OpenAPI 3 | Swagger ドキュメント生成およびフロントエンド TypeScript 型定義連携 |
@@ -84,7 +93,7 @@ Atria は、勤怠管理と申請・承認（ワークフロー）を一つに�
 atria/
 ├── .github/workflows/ci.yml      # GitHub Actions CI (H2 + PostgreSQL 16 Flyway/Trigger + ESLint & Vite)
 ├── docs/
-│   ├── ROADMAP.md                # マイルストーン計画および Git タグスケジュール (Phase 0〜Phase 6)
+│   ├── ROADMAP.md                # マイルストーン計画および Git タグスケジュール (Phase 0〜Phase 5)
 │   ├── ARCHITECTURE.md           # モジュラーモノリス構造およびデータベーススキーマ概要
 │   ├── NEXT_STEPS.md             # セッション間引き継ぎおよびタスクチェックリスト
 │   └── adr/                      # アーキテクチャ意思決定記録 (ADR-0001〜ADR-0008 英語版原本)
@@ -95,20 +104,25 @@ atria/
 │       │   ├── common/           # ApiResponse, ErrorCode, AesGcmCipher, HmacSignatureVerifier 等
 │       │   ├── config/           # I18nConfig, OpenApiConfig, CorsConfig
 │       │   ├── iam/              # 認証、ユーザー、部門ツリー、ロール・権限、@DataScope、@AuditLog
-│       │   └── attendance/       # 日台勤務カレンダー、不変打刻ログ・日次集計、FIFO休暇台帳、残業・代休、承認イベント＆スタブ
+│       │   ├── attendance/       # 日台勤務カレンダー、不変打刻ログ・日次集計、FIFO休暇台帳、残業・代休、承認イベント＆スタブ
+│       │   ├── workflow/         # 動的フォーム、構造化条件多段階承認エンジン、申請インスタンス状態機、代理承認
+│       │   └── notification/     # アプリ内通知、メールログ通知、月次休暇残高ダイジェストバッチ
 │       ├── main/resources/
-│       │   ├── db/migration/     # Flyway V1–V4 SQL マイグレーション (postgresql/ & h2/)
+│       │   ├── db/migration/     # Flyway V1–V5 SQL マイグレーション (postgresql/ & h2/)
 │       │   └── i18n/             # 3言語メッセージバンドル (zh_TW, en_US, ja_JP)
-│       └── test/                 # IAM・Phase 3a/3b Attendance・改ざん防止・ArchUnit テスト (32件)
+│       └── test/                 # IAM・勤怠・ワークフロー/通知・改ざん防止・ArchUnit テスト (40件)
 └── frontend/                     # npm package: atria-frontend (Vue 3.5, Vite 6, TypeScript, PrimeVue 4)
+    ├── scripts/                  # check-ui-i18n.mjs (485キー3言語完全一致・Buttonラベル重複防止・data-testid 静的検証)
     └── src/
-        ├── api/                  # Axios クライアント (JWT 自動更新 & 1003 ガード) + IAM / Attendance API
-        ├── components/common/    # 3言語スイッチャー LanguageSwitcher
+        ├── api/                  # Axios クライアント (JWT 自動更新 & 1003 ガード) + IAM・Attendance・Workflow API
+        ├── components/
+        │   ├── common/           # 3言語スイッチャー LanguageSwitcher・アプリ内通知ベル NotificationBell
+        │   └── portal/           # PortalWorkflowPanel 従業員申請履歴・承認受信用受信箱パネル
         ├── i18n/                 # vue-i18n ロケール辞書 (zh-TW, en-US, ja-JP)
         ├── layouts/              # PublicLayout, PortalLayout, AdminLayout
         ├── router/               # 3ホールルートガードおよびパスワード変更強制リダイレクト
         ├── stores/               # Pinia auth ストア (インメモリ Access Token & プロフィール)
-        └── views/                # Public, Portal (打刻・カレンダー・休暇/残業申請), Auth, Admin (IAM + 勤怠・休暇・残業管理) 画面
+        └── views/                # Public, Portal, Auth, Admin (IAM + 勤怠・休暇残業ルール・ワークフロー管理) 画面
 ```
 
 ---
@@ -141,9 +155,8 @@ npm run dev
 | **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 フロントエンド骨格 (`atria-frontend`)、3つのレイアウト、IAM 管理画面、`hire_date` (`V2`) | ✅ 完了 |
 | **Phase 3a** | `v0.4.0-attendance-core` | マルチリージョンカレンダー (`TW`/`JP` テンプレート)、不変打刻ログ (`att_punch_log`) + 日次集計 (`att_daily_record`)、Bot 打刻、日次締め・月次締め、`/portal`・`/admin` カレンダー UI | ✅ 完了 |
 | **Phase 3b** | `v0.4.5-leave-overtime` | 休暇種別・勤続年数付与ルール (`hire_date`)、休暇時間計算・残高台帳、日台残業割増率・上限エンジン、代休換算、承認イベント契約 + テストスタブ | ✅ 完了 |
-| **Phase 4** | `v0.5.0-workflow` | 動的フォーム (`wf_form_template`)、構造化条件による多段階承認ワークフロー (`wf_*`)、承認者フォールバック、代理承認 (`wf_deputy`)、通知基盤 (`ntf_*`)・月次残高ダイジェスト | ⏳ 次フェーズ |
-| **Phase 5** | `v0.6.0-dashboard-notice` | 上長向け勤怠ダッシュボード、打刻異常フィルタ、給与計算用加重時間 Excel/CSV 出力、Webhook Bot 通知、社外 (`/public`)・社内 (`/portal`) お知らせ機能 (`ann_*`) | ⏳ 計画中 |
-| **Phase 6** | `v0.7.0-ai-suite` | 軽量 AI チャット (SSE)、職場テキスト変換、非同期音声ファイルの文字起こし (`ai_stt_job` 独立 `whisper.cpp` サービス) | ⏳ 計画中 |
+| **Phase 4** | `v0.5.0-workflow` | 動的フォーム (`wf_form_template`)、構造化条件による多段階承認ワークフロー (`wf_*`)、承認者フォールバック、代理承認 (`wf_deputy`)、通知基盤 (`ntf_*`)・月次残高ダイジェスト | ✅ 完了 |
+| **Phase 5** | `v1.0.0` | 公開サイト企業お知らせ (`ann_*`)、上長勤怠ダッシュボード・給与計算用加重時間出力、非同期 AI 音声文字起こし (`ai_stt_job`)・最終リリース整備 | ⏳ 次フェーズ |
 
 ---
 

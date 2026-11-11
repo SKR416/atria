@@ -7,7 +7,7 @@
 ## 一、 目前進度與專案現況 (Current Status)
 
 - **專案路徑**：`C:\Users\a1083\OneDrive\文件\atria`
-- **Git 狀態**：`main` 分支，Phase 0 (`v0.1.0-foundation`)、Phase 1 (`v0.2.0-iam`)、Phase 2 (`v0.3.0-frontend-shell`)、Phase 3a (`v0.4.0-attendance-core`)、Phase 3a.5（品質閘門、ArchUnit 架構測試與 `att_punch_log` 雙層防竄改加固）與 **Phase 3b (`v0.4.5-leave-overtime` 假別額度帳本、台日法定加班與簽核事件契約)** 已全部完成實作與驗證（通過後端 32 項測試 + 前端 `npm run lint` 0 警告與 `npm run build` 打包）
+- **Git 狀態**：`main` 分支，Phase 0 (`v0.1.0-foundation`)、Phase 1 (`v0.2.0-iam`)、Phase 2 (`v0.3.0-frontend-shell`)、Phase 3a (`v0.4.0-attendance-core`)、Phase 3a.5（品質閘門、ArchUnit 架構測試與 `att_punch_log` 雙層防竄改加固）、Phase 3b (`v0.4.5-leave-overtime` 假別額度帳本、台日法定加班與簽核事件契約）與 **Phase 4 (`v0.5.0-workflow` 動態表單、多層級簽核流程、站內通知與每月假勤摘要)** 已全部完成實作與驗證（通過後端 40 項自動化測試 + 前端 `npm run lint` 0 警告/錯誤 [含 485 鍵靜態 UI/i18n 守門] 與 `npm run build` 打包通過）
 - **已完成工作**：
   - [x] **Phase 0 基礎底座 (`v0.1.0-foundation`)**：Monorepo 結構、三語 README、ADR 文件群、Spring Boot 3.3.5 + Java 21 骨架、統一響應 `ApiResponse<T>` / `PageResult<T>`、三語 `ErrorCode` i18n、`ClientIpResolver`、`HmacSignatureVerifier`。
   - [x] **Phase 1 IAM 與權限核心 (`v0.2.0-iam`)**：
@@ -39,6 +39,15 @@
     - [x] **台日加班倍率／上限引擎與補休折算 (`OvertimeRuleAndCalculatorService`, `CompLeaveGrantService`)**：以 `BigDecimal` + `RoundingMode.CEILING` 計算累計級距加權分鐘數、檢核單月／跨月／年度上限（`WARN` / `BLOCK` `2020`）、支援 `PAY` 與 `COMP_LEAVE`（`HOURS_1_TO_1` / `RATE_MULTIPLIED`）並同步建立關聯 `att_leave_balance` 額度桶，且支援依 `band_breakdown_json` 執行台灣勞基法第 32-1 條補休到期未休折算還原。
     - [x] **單向簽核領域事件契約與考勤重算整合 (`AttendanceRequestService`, `AttendanceRecordCalculator`, `DatabasePendingRequestChecker`, `AttRequestGuardImpl`, `AttendanceRequestStubController`)**：於 `attendance.event` 定義無循環依賴之領域事件、核准上午／下午請假時自動順延遲到或提前早退起算基準、核准補打卡時寫入 `att_punch_log(CORRECTION)` 並重算當日考勤、真實查詢未決 `PENDING` 單據阻擋月結關帳（`2010`）、防止已動用補休之加班單遭撤銷（`2025`），並提供 `@Profile({"local", "pgtest"})` 開發測試簽核 Stub。
     - [x] **前端 `/portal` 差勤申請工作台與 `/admin/attendance/leave-overtime` 假勤加班規則後台 (`PortalHomeView.vue`, `LeaveOvertimeManageView.vue`)**，並通過 `Phase3bLeaveOvertimeIntegrationTests`（8 大端到端情境測試，全專案共 32 項測試全數通過）。
+  - [x] **Phase 4 動態表單、多層級簽核流程與通知中心 (`v0.5.0-workflow`)**：
+    - [x] **Flyway `V5__init_workflow_and_notification_schema.sql`（PostgreSQL 16 與 H2 雙版本）**：建立動態表單模板 `wf_form_template`、簽核流程定義 `wf_flow_definition`、簽核節點 `wf_flow_node`、結構化條件 `wf_flow_node_condition`、簽核實例 `wf_instance`（含 `@Version` 樂觀鎖與不可變結構快照）、簽核歷程 `wf_task_log`、職務代理 `wf_deputy`、站內通知 `ntf_notification` 與摘要日誌 `ntf_digest_log` 共 9 張新表，並植入 `wf:instance:self`、`wf:template:read`、`wf:template:write`、`wf:instance:reassign`、`ntf:digest:trigger` 權限。
+    - [x] **動態表單 JSON Schema 與不可變版本機制 (`wf_form_template`, `wf_instance`)**：支援 `TEXT`、`TEXTAREA`、`NUMBER`、`SELECT`、`DATE` 欄位型態，模板定義異動時自動升版（`v1` -> `v2`），且每筆送出的簽核實例 (`wf_instance`) 永久凍結儲存提交當下的 `form_version` 與 `schema_snapshot_json`。
+    - [x] **純 Java 結構化條件多層級簽核引擎 (`StructuredConditionEvaluator`, `ApproverResolverService`, `WorkflowEngineService`)**：零 SpEL 表達式注入風險，純 Java 運算 `wf_flow_node_condition`（`EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `IN`，同組 `logical_group` 為 AND，跨組為 OR），沿部門組織樹向上解析主管（`DIRECT_LEADER`, `PARENT_LEADER`, `SPECIFIC_ROLE`）並具備 `HR_ADMIN` -> `SUPER_ADMIN` 安全兜底與申請人同簽核人自動跳過（`selfApprovalAutoSkip`）。
+    - [x] **差勤雙向領域事件迴路 (`attendance.event.*`)**：監聽 `AttRequestSubmittedEvent` / `AttRequestCancelledEvent` 自動建立或取消連動 `wf_instance`；簽核終態（核准／駁回／撤銷）發布 `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent`，並透過 `AttRequestGuard` 嚴密保護已核准單據之撤銷前置檢驗。
+    - [x] **退回修改 (`差戻し`) 與欄位修訂對比 (`diff_json`)**：獨立動態表單 (`target_type = 'DYNAMIC_FORM'`) 支援退回草稿修改與版本對比；差勤單據嚴禁退回修改（拋出 `3009` `WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST`），捍衛 FIFO 凍結額度一致性。
+    - [x] **職務代理人授權 (`wf_deputy`) 與 HR 強制改派 (`REASSIGN`)**：支援指定日期區間之代理規則，內建禁止代理自己 (`3012`) 與重疊區間防護 (`3013`)；簽核歷程 `wf_task_log` 完整記錄雙軌稽核（實際代理操作者 `actor_user_id` 與被代理主管 `delegator_user_id`），並支援管理員強制改派任務。
+    - [x] **站內通知中心與每月假勤摘要冪等排程 (`notification` 模組)**：頂部導航即時未讀通知鈴鐺 (`NotificationBell.vue`)、開發環境日誌模擬郵件通道 (`EmailNotificationChannel`)，以及每月假勤額度與即將到期提醒排程 `LeaveBalanceDigestJob`（以 `ntf_digest_log` 具備 `UNIQUE (user_id, period_year_month)` 確保排程不重複寄送）。
+    - [x] **前端畫面與品質驗收守門員**：實作 `NotificationBell.vue`（站內通知鈴鐺抽屜）、`/portal` 員工簽核中心面板 (`PortalWorkflowPanel.vue`)、`/admin/workflow/manage` 流程與表單管理後台 (`WorkflowManageView.vue`)，以及無瀏覽器靜態 UI/i18n 守門腳本 `frontend/scripts/check-ui-i18n.mjs`。
 
 ---
 
@@ -46,31 +55,34 @@
 
 | 工具 | 目前狀態 | 建議動作 / 安裝指令 |
 | :--- | :--- | :--- |
-| **Node.js** | ✅ 已安裝 (`v24.14.1`) | `frontend/` 依賴已安裝，`npm run lint`（ESLint 9 零警告）與 `npm run build`（`vue-tsc -b && vite build`）驗證通過 |
+| **Node.js** | ✅ 已安裝 (`v24.14.1`) | `frontend/` 依賴已安裝，`npm run lint`（ESLint 9 零警告 + `scripts/check-ui-i18n.mjs` 485 鍵靜態守門零錯誤）與 `npm run build`（`vue-tsc -b && vite build`）驗證通過 |
 | **Java JDK 21** | ✅ 已安裝 (`Temurin 21.0.13 LTS`) | 路徑：`C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` |
-| **Maven Wrapper** | ✅ 已內建 (`mvnw` / `mvnw.cmd`) | `cd backend && ./mvnw.cmd test` 通過 32 項測試（IAM 7 項 + Phase 3a Attendance 9 項 + Phase 3b Leave/Overtime 8 項 + Immutability 2 項 + ArchUnit 5 項 + Context 1 項） |
-| **PostgreSQL 16** | ✅ CI 內建 (`postgres:16-alpine`) | 本機預設 H2 快速測試；GitHub Actions CI 透過 `-Dspring.profiles.active=pgtest` 跑真實 PostgreSQL 16 Flyway 與 Trigger 驗證 |
+| **Maven Wrapper** | ✅ 已內建 (`mvnw` / `mvnw.cmd`) | `cd backend && ./mvnw.cmd test` 通過 40 項測試（8 條 ArchUnit 模組架構金字塔規則 + 7 IAM + 8 Phase 3a Attendance + 11 Phase 3b Leave/Overtime + 5 Phase 4a Workflow/Notification + 1 DB 防竄改 + 1 Spring Context） |
+| **PostgreSQL 16** | ✅ CI 內建 (`postgres:16-alpine`) | 本機預設 H2 快速測試；GitHub Actions CI 透過 `-Dspring.profiles.active=pgtest` 跑真實 PostgreSQL 16 Flyway（V1–V5）與 Trigger 驗證 |
 
 ---
 
-## 三、 下一階段待辦：Phase 4 動態表單、多層級簽核流程與通知中心 (`v0.5.0-workflow`)
+## 三、 下一階段待辦：Phase 5 公開前台企業公告、非同步 AI 語音轉文字 (STT) 與最終發布收尾 (`v1.0.0`)
 
-依據 `docs/ROADMAP.md`、`docs/adr/ADR-0005-dynamic-form-versioning-and-approval-workflow.md` 與 `docs/adr/ADR-0008-attendance-leave-overtime-refinements.md` Decision 8, 9, 10：
+依據 `docs/ROADMAP.md`、`docs/adr/ADR-0006-ai-module-scope-and-async-stt.md` 與專案整體架構設計：
 
-1. **Flyway Migration `V5__init_workflow_and_notification_schema.sql`（PostgreSQL 與 H2 雙版本）**：
-   - 建立動態表單模板表 `wf_form_template`（含版本號與 JSON Schema 定義）、簽核流程定義 `wf_flow_definition`、簽核節點 `wf_flow_node`、結構化條件表 `wf_flow_node_condition`（`field_key`、`operator`、`value`、`logical_group`，不使用 SpEL）、簽核實例 `wf_instance`（含 `@Version` 樂觀鎖與關聯 `att_request`）、簽核歷程 `wf_task_log`、職務代理人 `wf_deputy`，以及通知資料表 `ntf_notification` 與寄送冪等紀錄 `ntf_digest_log`。
-2. **結構化條件評估器與部門樹主管解析引擎 (`workflow` 模組)**：
-   - 純 Java 結構化條件評估（支援 `EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `IN`）。
-   - 簽核人解析：沿 `iam_department` 向上尋找 `leader_id`，若無則 fallback 至 `HR_ADMIN` 角色；支援申請人與簽核人同一人時自動跳過（Self-approval auto-skip）及有效期間內之 `wf_deputy` 職務代理。
-   - 支援退回修改（Return-to-Draft with Diff）、申請人抽單連動（監聽 `AttRequestCancelledEvent`）、核准後撤銷流程（呼叫 `AttRequestGuard.assertCanRevokeApprovedRequest`）與 HR 強制改派（`REASSIGN`）。
-3. **無循環依賴串接 `attendance.event.*`**：
-   - `workflow` 監聽 `AttRequestSubmittedEvent` 自動建立簽核實例；當簽核實例進入終態時發布 `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent` 由 `attendance` 自動完成扣帳與考勤重算。
-4. **通知中心與每月假別餘額彙總排程 (`ntf_*` + `LeaveBalanceDigestJob`)**：
-   - 實作 `InAppNotificationChannel` 與 `EmailNotificationChannel`（`local` profile 寫入日誌／暫存檔，免設定外部 SMTP）。
-   - 實作 `LeaveBalanceDigestJob`：結合 Phase 3b 的 `LeaveDashboardQuery`（各假別剩餘時數、90 天即將到期補休、日本年休 5 日義務進度），依 `(user_id, period)` 冪等發送每月摘要通知。
-5. **前端 `/portal` 簽核收件匣與 `/admin` 動態表單／流程規則管理 UI**：
-   - 升級 `/portal`：新增「待我簽核（Approval Inbox）」與站內通知鈴鐺抽屜。
-   - 新增 `/admin/workflow/*`：動態表單版本管理、多層級流程與結構化條件設定、職務代理人與 HR 強制改派介面。
+1. **Flyway Migration `V6__init_announcement_and_ai_schema.sql`（PostgreSQL 與 H2 雙版本）**：
+   - 建立公告表 `ann_notice`（支援 `PUBLIC` / `INTERNAL` 範疇、多語系標題與富文本內容、置頂旗標、發布狀態）、已讀回條表 `ann_read_receipt`。
+   - 建立 AI 對話階段表 `ai_chat_session`、對話訊息表 `ai_chat_message`、非同步語音轉文字任務表 `ai_stt_job`（狀態：`PENDING` / `PROCESSING` / `COMPLETED` / `FAILED`）以及用量配額表 `ai_usage_quota`。
+2. **主管差勤看板與計薪加權工時匯出 (`dashboard` 模組)**：
+   - 實作 `/admin/dashboard` 主管差勤即時看板：ApexCharts 出缺勤 KPI 趨勢、當日異常打卡篩選、待審核單據預警。
+   - 實作每月計薪加權時數匯出：支援 Apache POI SXSSF 串流產生 Excel (`.xlsx`) 與 UTF-8 BOM CSV，包含平日／休息日／例假日各級距加權工時與未休代休結算金。
+3. **企業公告系統 (`announcement` 模組)**：
+   - 公開前台 (`/public`)：免登入公告列表、分類篩選、置頂顯示與三語切換。
+   - 員工入口 (`/portal`)：內部公告廣播、已讀標記 (`ann_read_receipt`) 與未讀徽章連動。
+4. **務實的 AI 模組與非同步語音轉文字 (`ai` 模組)**：
+   - 實作統一 `AiProvider` SPI 與 zero-key local mock 實作。
+   - 實作 SSE 串流對話與職場文字轉換模板（請假理由修飾、週報摘要、語氣轉換）。
+   - 實作獨立 `whisper.cpp` HTTP 介接客戶端與非同步音檔轉文字任務排程 (`ai_stt_job`)。
+5. **外部 Webhook 機器人通知通道 (`WebhookBotNotificationChannel`)**：
+   - 支援 Slack / Microsoft Teams / LINE 機器人 Proxy Webhook 轉發重大考勤或簽核事件。
+6. **產品化最終驗收與打包發布 (`v1.0.0`)**：
+   - 執行三語 README、ADR 與全系統功能端到端驗收，建立 `v1.0.0` 發布標籤。
 
 ---
 
@@ -80,6 +92,7 @@
 
 ```text
 我們正在開發 Atria 專案（路徑：C:\Users\a1083\OneDrive\文件\atria）。
-請讀取 CLAUDE.md、docs/NEXT_STEPS.md、docs/ROADMAP.md、docs/adr/ADR-0005-dynamic-form-versioning-and-approval-workflow.md 與 docs/adr/ADR-0008-attendance-leave-overtime-refinements.md，
-準備規劃並執行 Phase 4：動態表單、多層級簽核流程與通知中心（v0.5.0-workflow）。
+Phase 4（v0.5.0-workflow）已順利完工並通過 40 項後端測試與前端品質守門。
+請讀取 CLAUDE.md、docs/NEXT_STEPS.md、docs/ROADMAP.md 與 docs/adr/ADR-0006-ai-module-scope-and-async-stt.md，
+準備規劃並執行 Phase 5：公開前台企業公告、非同步 AI 語音轉文字 (STT) 與最終發布收尾（v1.0.0）。
 ```

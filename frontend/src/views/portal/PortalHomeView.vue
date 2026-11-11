@@ -28,6 +28,7 @@ import Textarea from 'primevue/textarea'
 import Dialog from 'primevue/dialog'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
+import PortalWorkflowPanel from '@/components/portal/PortalWorkflowPanel.vue'
 import {
   Clock,
   Calendar as CalendarIcon,
@@ -902,7 +903,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="portal-home">
+  <div class="portal-home" data-testid="portal-home-view">
     <!-- Top Welcome & Context Banner -->
     <div class="welcome-banner">
       <div class="welcome-content">
@@ -1608,7 +1609,7 @@ onUnmounted(() => {
                 <th>{{ t('attendance.requests.requestType') }}</th>
                 <th>{{ t('attendance.requests.dateRange') }}</th>
                 <th>{{ t('attendance.requests.requestedMinutes') }}</th>
-                <th>{{ t('iam.role.status') }}</th>
+                <th>{{ t('common.status') }}</th>
                 <th>{{ t('attendance.requests.warningMessages') }}</th>
                 <th style="width: 280px">{{ t('common.actions') }}</th>
               </tr>
@@ -1700,6 +1701,9 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
+
+    <!-- Portal Approval Inbox & Dynamic Form Center -->
+    <PortalWorkflowPanel />
 
     <!-- Day Detail Dialog -->
     <Dialog

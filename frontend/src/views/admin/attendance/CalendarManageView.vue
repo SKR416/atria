@@ -402,7 +402,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="calendar-manage-view">
+  <div class="calendar-manage-view" data-testid="admin-calendar-manage-view">
     <!-- Top Header -->
     <div class="atria-page-header">
       <div>

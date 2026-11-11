@@ -765,12 +765,12 @@ onMounted(() => {
           <thead>
             <tr>
               <th style="width: 120px">{{ t('attendance.leaveOvertime.leaveCode') }}</th>
-              <th>{{ t('iam.role.name') }}</th>
+              <th>{{ t('common.name') }}</th>
               <th style="width: 130px">{{ t('attendance.leaveOvertime.minUnitMinutes') }}</th>
               <th style="width: 100px">{{ t('attendance.leaveOvertime.paid') }}</th>
               <th style="width: 130px">{{ t('attendance.leaveOvertime.balanceTracked') }}</th>
               <th style="width: 120px">{{ t('attendance.leaveOvertime.attachmentRequired') }}</th>
-              <th style="width: 90px">{{ t('iam.role.status') }}</th>
+              <th style="width: 90px">{{ t('common.status') }}</th>
               <th style="width: 90px">{{ t('common.actions') }}</th>
             </tr>
           </thead>
@@ -1025,11 +1025,11 @@ onMounted(() => {
             <tr>
               <th style="width: 80px">{{ t('attendance.calendar.regionLabel') }}</th>
               <th style="width: 160px">{{ t('attendance.leaveOvertime.ruleCode') }}</th>
-              <th>{{ t('iam.role.name') }}</th>
+              <th>{{ t('common.name') }}</th>
               <th style="width: 120px">{{ t('attendance.leaveOvertime.periodMonths') }}</th>
               <th style="width: 140px">{{ t('attendance.leaveOvertime.maxMinutes') }}</th>
               <th style="width: 120px">{{ t('attendance.leaveOvertime.enforcementAction') }}</th>
-              <th style="width: 90px">{{ t('iam.role.status') }}</th>
+              <th style="width: 90px">{{ t('common.status') }}</th>
               <th style="width: 80px">{{ t('common.actions') }}</th>
             </tr>
           </thead>
@@ -1249,7 +1249,7 @@ onMounted(() => {
         </div>
 
         <div class="dialog-field">
-          <label>{{ t('iam.role.name') }} (zh-TW) *</label>
+          <label>{{ t('common.name') }} (zh-TW) *</label>
           <InputText
             v-model="leaveTypeForm.nameZh"
             placeholder="特別休假"
@@ -1259,7 +1259,7 @@ onMounted(() => {
 
         <div class="form-row-2">
           <div class="dialog-field">
-            <label>{{ t('iam.role.name') }} (en-US)</label>
+            <label>{{ t('common.name') }} (en-US)</label>
             <InputText
               v-model="leaveTypeForm.nameEn"
               placeholder="Annual Leave"
@@ -1267,7 +1267,7 @@ onMounted(() => {
             />
           </div>
           <div class="dialog-field">
-            <label>{{ t('iam.role.name') }} (ja-JP)</label>
+            <label>{{ t('common.name') }} (ja-JP)</label>
             <InputText
               v-model="leaveTypeForm.nameJa"
               placeholder="年次有給休暇"
@@ -1562,7 +1562,7 @@ onMounted(() => {
         </div>
 
         <div class="dialog-field">
-          <label>{{ t('iam.role.name') }} (zh-TW) *</label>
+          <label>{{ t('common.name') }} (zh-TW) *</label>
           <InputText
             v-model="capRuleForm.nameZh"
             class="w-full"
@@ -1571,14 +1571,14 @@ onMounted(() => {
 
         <div class="form-row-2">
           <div class="dialog-field">
-            <label>{{ t('iam.role.name') }} (en-US)</label>
+            <label>{{ t('common.name') }} (en-US)</label>
             <InputText
               v-model="capRuleForm.nameEn"
               class="w-full"
             />
           </div>
           <div class="dialog-field">
-            <label>{{ t('iam.role.name') }} (ja-JP)</label>
+            <label>{{ t('common.name') }} (ja-JP)</label>
             <InputText
               v-model="capRuleForm.nameJa"
               class="w-full"

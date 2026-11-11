@@ -13,9 +13,8 @@ This document tracks the vertical-slice implementation plan for **Atria** (*Atte
 | **Phase 2** | `v0.3.0-frontend-shell` | Vue 3 shell (`atria-frontend`), three layouts (`/public`, `/portal`, `/admin`), trilingual switcher, IAM admin UI, plus `iam_user.hire_date` (`V2`) | ✅ Completed |
 | **Phase 3a** | `v0.4.0-attendance-core` | Multi-region calendar (`TW`/`JP` templates), immutable `att_punch_log` + derived `att_daily_record`, punch rules & cutoff, bot punch, daily settlement, monthly closing, `/portal` clock-in & calendar, `/admin` calendar UI | ✅ Completed |
 | **Phase 3b** | `v0.4.5-leave-overtime` | Leave types & min units, seniority grant rules & job (`hire_date`), leave calculator, balance ledger, overtime rate/cap rules, comp leave conversion & expiry, approval event contract + dev/test approval stub | ✅ Completed |
-| **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), structured-condition approval workflow (`wf_*`), approver fallback, deputy delegation (`wf_deputy`), notification foundation (`ntf_*`) & monthly leave digest | ⏳ Next |
-| **Phase 5** | `v0.6.0-dashboard-notice` | Manager attendance dashboard, anomaly filtering, payroll weighted-hour Excel/CSV export, webhook bot notifications, public (`/public`) & internal (`/portal`) announcements (`ann_*`) | ⏳ Planned |
-| **Phase 6** | `v0.7.0-ai-suite` | Embedded AI chat (SSE), workplace text transformation, and asynchronous audio-to-text transcription (`ai_stt_job`) | ⏳ Planned |
+| **Phase 4** | `v0.5.0-workflow` | Dynamic form templates (`wf_form_template`), structured-condition approval workflow (`wf_*`), approver fallback, deputy delegation (`wf_deputy`), notification foundation (`ntf_*`) & monthly leave digest | ✅ Completed |
+| **Phase 5** | `v1.0.0` | Public Hall corporate announcements (`ann_*`), manager dashboard & payroll export, async AI voice-to-text (`ai_stt_job`), and final release polish | ⏳ Next |
 
 ---
 
@@ -63,20 +62,20 @@ This document tracks the vertical-slice implementation plan for **Atria** (*Atte
 - [x] Leave Balance, 90-Day Expiring Comp-Leave & JP 5-Day Obligation Dashboard API + `/portal` Leave / Punch-Correction / Overtime application UI and `/admin` Leave & Overtime Rules management UI (actual email digest job `LeaveBalanceDigestJob` deferred to Phase 4 once `ntf_*` lands)
 
 ### Phase 4: Dynamic Forms, Multi-Level Approval Workflow & Notifications (`v0.5.0-workflow`)
-- [ ] Flyway migration `V5__init_workflow_and_notification_schema.sql`: `wf_flow_definition`, `wf_flow_node`, `wf_flow_node_condition`, `wf_form_template`, `wf_instance`, `wf_task_log`, `wf_deputy`, plus `ntf_*` notification tables
-- [ ] Structured-condition approval evaluator in Java (no SpEL), department tree leader resolution with walk-up and `HR` role fallback, self-approval auto-skip, deputy delegation (`wf_deputy`), Return-to-Draft with UI Diff, revocation, and HR forced reassignment
-- [ ] Connect workflow terminal transitions to publish `AttRequestApprovedEvent` / `Rejected` / `Revoked`
-- [ ] Notification channels (`InAppNotificationChannel`, `EmailNotificationChannel` with dev log/file sink) and `LeaveBalanceDigestJob` (monthly balance & expiry/JP 5-day obligation digest)
-- [ ] Build `/admin` visual workflow rules UI and `/portal` approval inbox / my applications UI
+- [x] Flyway migration `V5__init_workflow_and_notification_schema.sql` (PostgreSQL 16 & H2 dialects): 9 new tables (`wf_form_template`, `wf_flow_definition`, `wf_flow_node`, `wf_flow_node_condition`, `wf_instance`, `wf_task_log`, `wf_deputy`, `ntf_notification`, `ntf_digest_log`) + permissions (`wf:instance:self`, `wf:template:read`, `wf:template:write`, `wf:instance:reassign`, `ntf:digest:trigger`)
+- [x] Dynamic Form Schema & Immutable Versioning (`wf_form_template`, `wf_instance`): JSON Schema field definitions (`TEXT`, `TEXTAREA`, `NUMBER`, `SELECT`, `DATE`), automatic version bumping on template schema updates (`v1` -> `v2`), and immutable `form_version` + `schema_snapshot_json` preserved on every submitted `wf_instance`
+- [x] SpEL-Free Structured Condition Multi-Level Approval Engine (`StructuredConditionEvaluator`, `ApproverResolverService`, `WorkflowEngineService`): pure Java evaluation of `wf_flow_node_condition` (`EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `IN`, same `logical_group` = AND, across groups = OR), department tree walk-up (`DIRECT_LEADER`, `PARENT_LEADER`, `SPECIFIC_ROLE`) with `HR_ADMIN` -> `SUPER_ADMIN` fallback, and `selfApprovalAutoSkip`
+- [x] Bidirectional Attendance Event Loop (`attendance.event.*`): `AttRequestSubmittedEvent` / `AttRequestCancelledEvent` auto-create/cancel linked `wf_instance`; workflow approval/rejection/revocation publishes `AttRequestApprovedEvent` / `AttRequestRejectedEvent` / `AttRequestRevokedEvent` (with pre-revoke validation via `AttRequestGuard`)
+- [x] Return-to-Draft (`差戻し`) & Field-by-Field Revision Diff (`diff_json`): supported on standalone dynamic forms (`target_type = 'DYNAMIC_FORM'`), blocked on attendance-linked requests (`3009` `WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST` to protect FIFO frozen leave buckets)
+- [x] Deputy Delegation (`wf_deputy`) & HR Force Reassign (`REASSIGN`): date-bounded deputy rules with self-delegation (`3012`) and overlap (`3013`) guards, dual audit logging (`actor_user_id` + `delegator_user_id` in `wf_task_log`), and admin forced task reassignment
+- [x] In-App Notifications & Idempotent Monthly Leave Digest (`notification` module): `NotificationBell.vue` in Portal & Admin topbars, dev email sink (`EmailNotificationChannel`), and `LeaveBalanceDigestJob` (`ntf_digest_log` with `UNIQUE (user_id, period_year_month)` idempotency)
+- [x] Frontend Views & Quality Verification Gate: `NotificationBell.vue` (topbar bell & notification drawer), `PortalWorkflowPanel.vue` (mounted in `/portal`), `WorkflowManageView.vue` (`/admin/workflow/manage`), and zero-browser static UI/i18n gate `frontend/scripts/check-ui-i18n.mjs` verifying 485 trilingual keys across `zh-TW.ts`, `en-US.ts`, and `ja-JP.ts`
 
-### Phase 5: Manager Dashboard, Payroll Export & Announcements (`v0.6.0-dashboard-notice`)
-- [ ] Flyway migration `V6__init_announcement_schema.sql`: `ann_notice`, `ann_read_receipt`
+### Phase 5: Public Hall Corporate Announcements, Async AI Voice-to-Text (STT) & Final Release Polish (`v1.0.0`)
+- [ ] Flyway migration `V6__init_announcement_and_ai_schema.sql`: `ann_notice`, `ann_read_receipt`, `ai_stt_job`, `ai_chat_session`, `ai_usage_quota`
 - [ ] Manager Dashboard API & UI (`/admin`): ApexCharts for attendance KPIs, anomaly filtering, and pending approvals
 - [ ] HR monthly attendance & weighted overtime summary export API: Excel (`.xlsx` via Apache POI SXSSF) and UTF-8 BOM CSV
 - [ ] Outbound `WebhookBotNotificationChannel` (Slack/Teams/LINE bot proxy)
 - [ ] Public announcements page (`/public`) and internal announcements feed (`/portal`) with sanitized Tiptap rich text and read receipts
-
-### Phase 6: Practical AI Utilities (`v0.7.0-ai-suite`)
-- [ ] Flyway migration `V7__init_ai_schema.sql`: `ai_chat_session`, `ai_chat_message`, `ai_stt_job`, `ai_usage_quota`
-- [ ] Unified `AiProvider` interface with a zero-key local mock implementation and standalone `whisper.cpp` HTTP adapter
-- [ ] Embedded AI Chat with SSE streaming, workplace text transformation templates, and async audio-to-text transcription (STT)
+- [ ] Asynchronous audio-to-text transcription (`ai_stt_job`) with standalone `whisper.cpp` HTTP adapter, SSE workplace text transform, and zero-key mock fallback
+- [ ] Production build packaging polish, trilingual release verification, and final v1.0.0 milestone tag

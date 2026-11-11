@@ -71,7 +71,21 @@ public enum ErrorCode {
     // --- Workflow (3xxx) ---
     WF_INSTANCE_NOT_FOUND(3001, HttpStatus.NOT_FOUND, "error.wf.instance_not_found"),
     WF_CANNOT_REVOKE_APPROVED(3002, HttpStatus.BAD_REQUEST, "error.wf.cannot_revoke_approved"),
-    WF_UNAUTHORIZED_APPROVER(3003, HttpStatus.FORBIDDEN, "error.wf.unauthorized_approver");
+    WF_UNAUTHORIZED_APPROVER(3003, HttpStatus.FORBIDDEN, "error.wf.unauthorized_approver"),
+    WF_TEMPLATE_NOT_FOUND(3004, HttpStatus.NOT_FOUND, "error.wf.template_not_found"),
+    WF_TEMPLATE_CODE_EXISTS(3005, HttpStatus.CONFLICT, "error.wf.template_code_exists"),
+    WF_FLOW_DEF_NOT_FOUND(3006, HttpStatus.NOT_FOUND, "error.wf.flow_def_not_found"),
+    WF_FLOW_CODE_EXISTS(3007, HttpStatus.CONFLICT, "error.wf.flow_code_exists"),
+    WF_INVALID_STATE_TRANSITION(3008, HttpStatus.CONFLICT, "error.wf.invalid_state_transition"),
+    WF_RETURN_TO_DRAFT_NOT_ALLOWED_FOR_ATT_REQUEST(3009, HttpStatus.BAD_REQUEST, "error.wf.return_to_draft_not_allowed_for_att"),
+    WF_FORM_VALIDATION_FAILED(3010, HttpStatus.BAD_REQUEST, "error.wf.form_validation_failed"),
+    WF_DEPUTY_NOT_FOUND(3011, HttpStatus.NOT_FOUND, "error.wf.deputy_not_found"),
+    WF_DEPUTY_SELF_DELEGATION_FORBIDDEN(3012, HttpStatus.BAD_REQUEST, "error.wf.deputy_self_delegation_forbidden"),
+    WF_DEPUTY_OVERLAPPING_PERIOD(3013, HttpStatus.CONFLICT, "error.wf.deputy_overlapping_period"),
+    WF_NO_APPROVER_RESOLVED(3014, HttpStatus.BAD_REQUEST, "error.wf.no_approver_resolved"),
+
+    // --- Notification (4xxx) ---
+    NTF_NOTIFICATION_NOT_FOUND(4001, HttpStatus.NOT_FOUND, "error.ntf.notification_not_found");
 
     private final int code;
     private final HttpStatus httpStatus;
